@@ -14,7 +14,6 @@ inputs:
     required: true
     
 runs:
-  using: self-hosted
   steps:
     run: ${{ github.action_path }}/script.py
     shell: python
