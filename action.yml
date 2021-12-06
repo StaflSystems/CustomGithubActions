@@ -13,5 +13,5 @@ inputs:
 runs:
   using: composite
   steps:
-    shell: python
-    run: script.py
+    run: python script.py
+    shell: bash
