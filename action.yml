@@ -13,5 +13,5 @@ inputs:
 runs:
   using: composite
   steps:
-    run: python script.py
+    run: python ${{ github.action_path }}/script.py
     shell: bash
