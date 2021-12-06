@@ -1,0 +1,14 @@
+Name: Write Build Version
+description: This writes the semver info taken in as an input to the BuildVersion.h file in the project
+author: harmandersihra
+
+inputs:
+  major_version:
+    required: true
+  minor_version:
+    required: true
+  patch_version:
+    required: true
+    
+runs:
+  main: script.py
