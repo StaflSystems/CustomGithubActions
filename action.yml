@@ -4,14 +4,17 @@ author: harmandersihra
 
 inputs:
   major_version:
+    description: The Major version
     required: true
   minor_version:
+    description: The Minor version
     required: true
   patch_version:
+    description: The Patch version
     required: true
     
 runs:
   using: composite
   steps:
-    run: python ${{ github.action_path }}/script.py
-    shell: bash
+    run: ${{ github.action_path }}/script.py
+    shell: python
