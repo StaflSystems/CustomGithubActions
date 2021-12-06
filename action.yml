@@ -12,4 +12,6 @@ inputs:
     
 runs:
   using: composite
-  main: script.py
+  steps:
+    shell: python
+    run: script.py
