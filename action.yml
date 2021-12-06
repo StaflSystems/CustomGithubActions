@@ -11,4 +11,5 @@ inputs:
     required: true
     
 runs:
+  using: composite
   main: script.py
