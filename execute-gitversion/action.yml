@@ -3,14 +3,16 @@ Description: This action executes gitversion with a custom config file to specif
 author: harmandersihra
 
 outputs:
-  major_version:
+  major:
     value: ${{ steps.gitversion.outputs.major }}
-  minor_version:
+  minor:
     value: ${{ steps.gitversion.outputs.minor }}
-  patch_version:
+  patch:
     value: ${{ steps.gitversion.outputs.patch }}
-  full_semver:
+  fullSemVer:
     value: ${{ steps.gitversion.outputs.fullSemVer }}
+  buildMetaData:
+    value: ${{ steps.gitversion.outputs.BuildMetaData }}
 
 runs:
   using: composite
