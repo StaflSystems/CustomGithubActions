@@ -19,4 +19,4 @@ runs:
       uses: gittools/actions/gitversion/execute@v0.9.7
       with:
         useConfigFile: true
-        configFilePath: ${{ github.action_path }}/execute-gitversion/GitVersion.yml
+        configFilePath: ${{ github.action_path }}\GitVersion.yml
