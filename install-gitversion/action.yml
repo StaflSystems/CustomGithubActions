@@ -1,0 +1,11 @@
+Name: Execute GitVersion
+Description: This action executes gitversion with a custom config file to specify certain options
+author: harmandersihra
+
+runs:
+  using: composite
+  steps:
+    uses: gittools/actions/gitversion/execute@v0.9.7
+    with:
+      useConfigFile: true
+      
