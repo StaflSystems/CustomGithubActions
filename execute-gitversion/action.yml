@@ -2,10 +2,20 @@ Name: Execute GitVersion
 Description: This action executes gitversion with a custom config file to specify certain options
 author: harmandersihra
 
+outputs:
+  major_version:
+    value: ${{ steps.gitversion.outputs.major }}
+  minor_version:
+    value: ${{ steps.gitversion.outputs.minor }}
+  patch_version:
+    value: ${{ steps.gitversion.outputs.patch }}
+  full_semver:
+    value: ${{ steps.gitversion.outputs.fullSemVer }}
+
 runs:
   using: composite
   steps:
-    uses: gittools/actions/gitversion/execute@v0.9.7
-    with:
-      useConfigFile: true
-      
+    - id: gitversion
+      uses: gittools/actions/gitversion/execute@v0.9.7
+      with:
+        useConfigFile: true
