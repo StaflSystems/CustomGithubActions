@@ -12,9 +12,12 @@ inputs:
   patch_version:
     description: The Patch version
     required: true
+  build_version:
+    description: The Build version
+    required: true
     
 runs:
   using: composite
   steps:
-    - run: ${{ github.action_path }}\script.py ${{inputs.major_version}} ${{inputs.minor_version}} ${{inputs.patch_version}}
+    - run: ${{ github.action_path }}\script.py ${{inputs.major_version}} ${{inputs.minor_version}} ${{inputs.patch_version}} ${{inputs.build_version}}
       shell: powershell
