@@ -25,7 +25,7 @@ def main(major, minor, patch, build):
 if __name__ == '__main__':
     # Get major, minor, and patch versions from inputs
     if len(sys.argv) != 5:
-        sys.exit("Correct usage: script.py <major version> <minor number> <patch number>")
+        sys.exit("Correct usage: script.py <major version> <minor number> <patch number> <build number>")
 
     major = sys.argv[1]
     minor = sys.argv[2]
