@@ -17,4 +17,3 @@ runs:
   using: composite
   steps:
     - run: ${{ github.action_path }}\script.py ${{inputs.major_version}} ${{inputs.minor_version}} ${{inputs.patch_version}}
-      shell: python
