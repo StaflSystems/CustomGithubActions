@@ -1,5 +1,5 @@
 mode: ContinuousDelivery
-commit-message-incrementing: MergeMessageOnly
+commit-message-incrementing: Enabled
 branches:
   master:
     increment: None
