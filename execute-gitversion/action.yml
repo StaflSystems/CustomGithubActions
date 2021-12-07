@@ -9,11 +9,10 @@ outputs:
     value: ${{ steps.gitversion.outputs.minor }}
   patch:
     value: ${{ steps.gitversion.outputs.patch }}
-  buildMetaData:
+  build:
     value: ${{ steps.gitversion.outputs.BuildMetaData }}
   fullSemVer:
     value: ${{ steps.gitversion.outputs.fullSemVer }}
-
 
 runs:
   using: composite
