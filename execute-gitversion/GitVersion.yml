@@ -1,3 +1,6 @@
 mode: ContinuousDelivery
+commit-message-incrementing: Disabled
 branches:
-  increment: None
+  master:
+    increment: None
+    regex: master$
