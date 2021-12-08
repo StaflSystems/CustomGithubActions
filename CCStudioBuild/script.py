@@ -21,7 +21,7 @@ def main(project_name, build_config):
 
     # Import stafllib
     # Note: If we're building stafllib itself, we don't need to do this
-    if (project_name != "stafllib"):
+    if (project_name.lower() != "stafllib"):
         submodule_import_command = "{} -noSplash -data {} -application com.ti.ccstudio.apps.projectImport -ccs.location " \
                                 "{}\{}\stafllib -ccs.overwrite".format(eclipse_path, workspace, workspace, project_name)
         if os.system(submodule_import_command) != 0:
