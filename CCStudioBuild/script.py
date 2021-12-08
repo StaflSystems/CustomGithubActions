@@ -5,12 +5,13 @@ import os
 import subprocess
 import sys
 
-eclipse_path = 'C:/ti/ccs1100/ccs/eclipse/eclipsec.exe'
-
 
 def main(project_name, build_config):
-    os.chdir("..")
+    eclipse_path = 'C:/ti/ccs1100/ccs/eclipse/eclipsec.exe'
     workspace = os.getcwd()
+    
+    # We need to be one directory up to simplify paths
+    os.chdir("..")
 
     # Import the main project
     import_command = "{} -noSplash -data {} -application com.ti.ccstudio.apps.projectImport -ccs.location " \
@@ -19,10 +20,12 @@ def main(project_name, build_config):
         raise RuntimeError
 
     # Import stafllib
-    submodule_import_command = "{} -noSplash -data {} -application com.ti.ccstudio.apps.projectImport -ccs.location " \
-                               "{}\{}\stafllib -ccs.overwrite".format(eclipse_path, workspace, workspace, project_name)
-    if os.system(submodule_import_command) != 0:
-        raise RuntimeError
+    # Note: If we're building stafllib itself, we don't need to do this
+    if (project_name != "stafllib"):
+        submodule_import_command = "{} -noSplash -data {} -application com.ti.ccstudio.apps.projectImport -ccs.location " \
+                                "{}\{}\stafllib -ccs.overwrite".format(eclipse_path, workspace, workspace, project_name)
+        if os.system(submodule_import_command) != 0:
+            raise RuntimeError
 
     # Build project
     build_command = "{} -noSplash -data {} -application com.ti.ccstudio.apps.projectBuild -ccs.projects {} " \
