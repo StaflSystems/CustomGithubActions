@@ -7,11 +7,11 @@ import sys
 
 
 def main(project_name, build_config):
+        # We need to be one directory up to simplify paths
+    os.chdir("..")
+    
     eclipse_path = 'C:/ti/ccs1100/ccs/eclipse/eclipsec.exe'
     workspace = os.getcwd()
-    
-    # We need to be one directory up to simplify paths
-    os.chdir("..")
 
     # Import the main project
     import_command = "{} -noSplash -data {} -application com.ti.ccstudio.apps.projectImport -ccs.location " \
