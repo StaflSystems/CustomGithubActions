@@ -1,4 +1,5 @@
-mode: ContinuousDeployment
+mode: ContinuousDelivery
+update-build-number: true
 commit-message-incrementing: Enabled
 branches:
   master:
