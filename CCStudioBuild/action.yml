@@ -1,0 +1,18 @@
+Name: CCStudio Build
+Description: This action does the actual building of our projects through a python script
+Author: Harmander Sihra
+
+inputs:
+  project_name:
+    description: The name of the project you would like to build
+    required: true
+  build_config:
+    description: The name of the build config used to build the project in CCStudio
+    required: true
+    
+runs:
+  using: composite
+  steps:
+    - run: ${{ github.action_path }}\script.py ${{ inputs.project_name }} ${{ inputs.build_config }}
+      shell: powershell
+      
