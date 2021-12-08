@@ -5,21 +5,29 @@
 
 import fileinput
 import sys
+import os
 
 def main(major, minor, patch, build):
     buildVersionFileName = 'BuildVersion.h'
 
-    for line in fileinput.input(buildVersionFileName, inplace = 1):
-        if "major" in line:
-            print(line.replace("0", major).rstrip())
-        elif "minor" in line:
-            print(line.replace("0", minor).rstrip())
-        elif "patch" in line:
-            print(line.replace("0", patch).rstrip())
-        elif "build" in line:
-            print(line.replace("0", build).rstrip())
-        else:
-            print(line.rstrip())
+    # We first check to see if the file exists
+    if (os.path.isfile(buildVersionFileName)):
+        print("Updating BuildVersion.h")
+
+        for line in fileinput.input(buildVersionFileName, inplace = 1):
+            if "major" in line:
+                print(line.replace("0", major).rstrip())
+            elif "minor" in line:
+                print(line.replace("0", minor).rstrip())
+            elif "patch" in line:
+                print(line.replace("0", patch).rstrip())
+            elif "build" in line:
+                print(line.replace("0", build).rstrip())
+            else:
+                print(line.rstrip())
+    
+    else:
+        print("BuildVersion.h not found in project. Skipping this step")
 
 
 if __name__ == '__main__':

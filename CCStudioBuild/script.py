@@ -20,8 +20,10 @@ def main(project_name, build_config):
         raise RuntimeError
 
     # Import stafllib
-    # Note: If we're building stafllib itself, we don't need to do this
-    if (project_name.lower() != "stafllib"):
+    # Note: We first check if stafllib is being used in this project in the first place
+    #       To do this, we just check to see if the folder exists before importing it
+    possible_stafllib_path = workspace + "\\" + project_name + "\\stafllib"
+    if (os.path.isdir(possible_stafllib_path)):
         submodule_import_command = "{} -noSplash -data {} -application com.ti.ccstudio.apps.projectImport -ccs.location " \
                                 "{}\{}\stafllib -ccs.overwrite".format(eclipse_path, workspace, workspace, project_name)
         if os.system(submodule_import_command) != 0:
