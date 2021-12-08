@@ -1,4 +1,4 @@
-mode: ContinuousDelivery
+mode: ContinuousDeployment
 commit-message-incrementing: Enabled
 branches:
   master:
