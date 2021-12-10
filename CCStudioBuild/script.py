@@ -16,6 +16,7 @@ def main(project_name, build_config):
     # Import the main project
     import_command = "{} -noSplash -data {} -application com.ti.ccstudio.apps.projectImport -ccs.location " \
                      "{}\{} -ccs.overwrite".format(eclipse_path, workspace, workspace, project_name)
+    print(import_command)
     if os.system(import_command) != 0:
         raise RuntimeError
 
@@ -26,12 +27,14 @@ def main(project_name, build_config):
     if (os.path.isdir(possible_stafllib_path)):
         submodule_import_command = "{} -noSplash -data {} -application com.ti.ccstudio.apps.projectImport -ccs.location " \
                                 "{}\{}\stafllib -ccs.overwrite".format(eclipse_path, workspace, workspace, project_name)
+        print(submodule_import_command)
         if os.system(submodule_import_command) != 0:
             raise RuntimeError
 
     # Build project
     build_command = "{} -noSplash -data {} -application com.ti.ccstudio.apps.projectBuild -ccs.projects {} " \
                     "-ccs.configuration {}".format(eclipse_path, workspace, project_name, build_config)
+    print(build_command)
     if os.system(build_command) != 0:
         raise RuntimeError
 
