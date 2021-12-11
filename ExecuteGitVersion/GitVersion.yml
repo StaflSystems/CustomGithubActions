@@ -2,6 +2,6 @@ mode: ContinuousDelivery
 update-build-number: true
 commit-message-incrementing: Enabled
 branches:
-  master:
+  main:
     increment: None
-    regex: master$
+    regex: main$
