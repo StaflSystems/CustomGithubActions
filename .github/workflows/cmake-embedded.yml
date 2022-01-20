@@ -11,6 +11,10 @@ on:
         description: (Release, Debug, RelWithDebInfo, etc.)
         required: true
         type: string
+    secrets:
+      ACTIONS_SSH_PRIVATE_KEY:
+        required: true
+        description: private key
 
 jobs:
   build:
