@@ -38,6 +38,10 @@ jobs:
       with:
         versionSpec: '5.x'
         
+    - uses: webfactory/ssh-agent@v0.5.4
+      with:
+          ssh-private-key: ${{ secrets.ACTIONS_SSH_PRIVATE_KEY }}
+        
     - name: Determine Version
       id: gitversion
       uses: StaflSystems/CustomGithubActions/ExecuteGitVersion@main
