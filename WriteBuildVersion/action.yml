@@ -21,3 +21,6 @@ runs:
   steps:
     - run: ${{ github.action_path }}\script.py ${{inputs.major_version}} ${{inputs.minor_version}} ${{inputs.patch_version}} ${{inputs.build_version}}
       shell: powershell
+      if: runner.os != 'Linux'
+    - run: ${{ github.action_path }}/script.py ${{inputs.major_version}} ${{inputs.minor_version}} ${{inputs.patch_version}} ${{inputs.build_version}}
+      if: runner.os == 'Linux'
