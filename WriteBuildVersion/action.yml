@@ -22,7 +22,7 @@ runs:
     - run: ${{ github.action_path }}\script.py ${{inputs.major_version}} ${{inputs.minor_version}} ${{inputs.patch_version}} ${{inputs.build_version}}
       shell: powershell
       if: runner.os != 'Linux'
-    - run: ls -al
+    - run: ls -al ${{ github.action_path }}
       shell: bash
       if: runner.os == 'Linux'
     - run: python3 ${{ github.action_path }}/script.py ${{inputs.major_version}} ${{inputs.minor_version}} ${{inputs.patch_version}} ${{inputs.build_version}}
