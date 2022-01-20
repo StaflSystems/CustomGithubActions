@@ -29,8 +29,9 @@ jobs:
       with:
         fetch-depth: 0
         
-    - name: Install Tools
-      run: sudo apt update && DEBIAN_FRONTEND=noninteractive sudo apt-get install -y dotnet-runtime-6.0
+    - uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: '6.0.x'
         
     - name: Install GitVersion
       uses: gittools/actions/gitversion/setup@v0.9.7
