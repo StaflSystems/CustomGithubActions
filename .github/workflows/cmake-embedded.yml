@@ -44,7 +44,7 @@ jobs:
         
     - uses: webfactory/ssh-agent@v0.5.4
       with:
-          ssh-private-key: ${{ inputs.ssh_private_key }}
+          ssh-private-key: ALFSKHASKDFJAKLSDFH
         
     - name: Determine Version
       id: gitversion
