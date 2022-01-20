@@ -11,10 +11,6 @@ on:
         description: (Release, Debug, RelWithDebInfo, etc.)
         required: true
         type: string
-      ssh_private_key:
-        description: private key
-        required: true
-        type: string
 
 jobs:
   build:
@@ -44,7 +40,7 @@ jobs:
         
     - uses: webfactory/ssh-agent@v0.5.4
       with:
-        ssh-private-key: ALFSKHASKDFJAKLSDFH
+        ssh-private-key: ${{ secrets.ACTIONS_SSH_PRIVATE_KEY }}
         
     - name: Determine Version
       id: gitversion
