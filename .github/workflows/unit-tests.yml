@@ -1,7 +1,11 @@
 name: Unit Tests
 
 on:
-  workflow_call
+  workflow_call:
+    secrets:
+      ACTIONS_SSH_PRIVATE_KEY:
+        required: true
+        description: private key
 
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
