@@ -47,11 +47,13 @@ jobs:
         ssh-private-key: ${{ secrets.ACTIONS_SSH_PRIVATE_KEY }}
         
     - name: Determine Version
+      if: github.ref == 'refs/heads/main'
       id: gitversion
       uses: StaflSystems/CustomGithubActions/ExecuteGitVersion@main
       
     - name: Update BuildVersion.h
       uses: StaflSystems/CustomGithubActions/WriteBuildVersion@main
+      if: github.ref == 'refs/heads/main'
       with:
         major_version: ${{steps.gitversion.outputs.major}}
         minor_version: ${{steps.gitversion.outputs.minor}}
