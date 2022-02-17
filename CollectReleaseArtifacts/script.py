@@ -2,6 +2,7 @@
 
 # This script collects release artifacts in a folder and appends the version to their name.
 
+from os import mkdir
 import sys
 from pathlib import Path
 from typing import List
@@ -11,8 +12,9 @@ from shutil import copyfile
 def main(version: str, globbing_patterns: str, destination: str):
     current_dir = Path(".")
     destination_dir = Path(destination)
-    artifacts: List[Path] = []
+    destination_dir.mkdir(parents=True, exist_ok=True)
 
+    artifacts: List[Path] = []
     for pattern in globbing_patterns.split(","):
         artifacts += list(current_dir.glob(pattern))
 
