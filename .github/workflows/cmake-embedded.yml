@@ -74,7 +74,7 @@ jobs:
       uses: StaflSystems/CustomGithubActions/CollectReleaseArtifacts@main
       with:
         version: ${{steps.gitversion.outputs.major}}.${{steps.gitversion.outputs.minor}}.${{steps.gitversion.outputs.patch}}+${{steps.gitversion.outputs.build}}
-        artifacts: "**/*.bin,**/*.out,**/*.elf,**/*.dbc,release-artifacts/*"
+        artifacts: "*/*.bin,*/*.out,*/*.elf,**/*.dbc,release-artifacts/*"
         destination: "release-artifacts-renamed"
 
     - name: Create a GitHub release
