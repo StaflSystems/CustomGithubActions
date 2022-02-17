@@ -70,9 +70,16 @@ jobs:
       # Build your program with the given configuration
       run: cmake --build build --config ${{inputs.build_type}}
 
+    - name: Collect Release Artifacts
+      uses: StaflSystems/CustomGithubActions/CollectReleaseArtifacts@main
+      with:
+        version: ${{steps.gitversion.outputs.major}}.${{steps.gitversion.outputs.minor}}.${{steps.gitversion.outputs.patch}}+${{steps.gitversion.outputs.build}}
+        artifacts: "build/*.bin,build/*.out,build/*.elf,**/*.dbc,release-artifacts/*"
+        destination: "release-artifacts-renamed"
+
     - name: Create a GitHub release
       if: github.ref == 'refs/heads/main'
       uses: ncipollo/release-action@v1
       with:
-        artifacts: "build/src/main/*bin"
+        artifacts: "release-artifacts-renamed/*"
         tag: ${{steps.gitversion.outputs.major}}.${{steps.gitversion.outputs.minor}}.${{steps.gitversion.outputs.patch}}+${{steps.gitversion.outputs.build}}
