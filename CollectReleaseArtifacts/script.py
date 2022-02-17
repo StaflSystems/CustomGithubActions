@@ -24,7 +24,7 @@ def main(version: str, globbing_patterns: str, destination: str):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
+    if len(sys.argv) != 4:
         sys.exit(
             "Correct usage: script.py <version> <artifact globbing patterns> <destination>"
         )
