@@ -8,7 +8,7 @@ on:
         required: true
         type: string
       build_config:
-        description: This is the build config we use in Eclipse
+        description: This is the build config we use in Code Composer Studio
         required: true
         type: string
       clean_workspace:
