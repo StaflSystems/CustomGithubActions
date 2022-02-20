@@ -47,13 +47,13 @@ jobs:
         ssh-private-key: ${{ secrets.ACTIONS_SSH_PRIVATE_KEY }}
         
     - name: Determine Version
-      if: github.ref == 'refs/heads/main'
+      if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/dev')
       id: gitversion
       uses: StaflSystems/CustomGithubActions/ExecuteGitVersion@main
       
     - name: Update BuildVersion.h
       uses: StaflSystems/CustomGithubActions/WriteBuildVersion@main
-      if: github.ref == 'refs/heads/main'
+      if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/dev')
       with:
         major_version: ${{steps.gitversion.outputs.major}}
         minor_version: ${{steps.gitversion.outputs.minor}}
@@ -89,7 +89,7 @@ jobs:
         tag: ${{steps.gitversion.outputs.major}}.${{steps.gitversion.outputs.minor}}.${{steps.gitversion.outputs.patch}}+${{steps.gitversion.outputs.build}}-${{ steps.branch-name.outputs.current_branch }}
 
     - name: Delete dev Branch
-      if: ${{ startsWith(github.ref, 'refs/heads/dev') }}
+      if: startsWith(github.ref, 'refs/heads/dev')
       run: |
         git checkout -b temp \ 
         git push origin --delete ${{ steps.branch-name.outputs.current_branch }}
