@@ -91,5 +91,4 @@ jobs:
     - name: Delete dev Branch
       if: startsWith(github.ref, 'refs/heads/dev')
       run: |
-        git checkout -b temp \ 
         git push origin --delete ${{ steps.branch-name.outputs.current_branch }}
