@@ -16,6 +16,9 @@ on:
         required: false
         type: boolean
         default: true 
+      build_version_path:
+        default: BuildVersion.h
+        type: string
     outputs:
       tag_version:
         description: version number of tag
