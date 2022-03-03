@@ -12,7 +12,7 @@ def main(filepath, major, minor, patch, build):
     if (os.path.isfile(filepath)):
         print("Updating BuildVersion.h")
 
-        for line in fileinput.input(buildVersionFileName, inplace = 1):
+        for line in fileinput.input(filepath, inplace = 1):
             if "major" in line:
                 print(line.replace("0", major).rstrip())
             elif "minor" in line:
