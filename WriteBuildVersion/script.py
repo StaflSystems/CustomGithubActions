@@ -27,7 +27,7 @@ def main(major, minor, patch, build):
                 print(line.rstrip())
     
     else:
-        print("BuildVersion.h not found in project. Skipping this step")
+        sys.exit("BuildVersion.h not found")
 
 
 if __name__ == '__main__':
