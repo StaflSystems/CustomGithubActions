@@ -11,6 +11,10 @@ on:
         description: (Release, Debug, RelWithDebInfo, etc.)
         required: true
         type: string
+      build_version_path:
+        default: main/src/BuildVersion.h
+        type: string
+        
     secrets:
       ACTIONS_SSH_PRIVATE_KEY:
         required: true
@@ -55,6 +59,7 @@ jobs:
       uses: StaflSystems/CustomGithubActions/WriteBuildVersion@main
       if: github.ref == 'refs/heads/main'
       with:
+        filepath: ${{inputs.build_version_path}}
         major_version: ${{steps.gitversion.outputs.major}}
         minor_version: ${{steps.gitversion.outputs.minor}}
         patch_version: ${{steps.gitversion.outputs.patch}}
