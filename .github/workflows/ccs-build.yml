@@ -53,6 +53,7 @@ jobs:
     - name: Update BuildVersion.h
       uses: StaflSystems/CustomGithubActions/WriteBuildVersion@main
       with:
+        filepath: ${{inputs.build_version_path}}
         major_version: ${{steps.gitversion.outputs.major}}
         minor_version: ${{steps.gitversion.outputs.minor}}
         patch_version: ${{steps.gitversion.outputs.patch}}
