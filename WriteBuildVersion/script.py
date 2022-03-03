@@ -30,7 +30,7 @@ def main(filepath, major, minor, patch, build):
 
 if __name__ == '__main__':
     # Get major, minor, and patch versions from inputs
-    if len(sys.argv) != 5:
+    if len(sys.argv) != 6:
         sys.exit("Correct usage: script.py <file_path> <major version> <minor number> <patch number> <build number>")
 
     filepath = sys.argv[1]
