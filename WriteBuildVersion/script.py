@@ -7,11 +7,9 @@ import fileinput
 import sys
 import os
 
-def main(major, minor, patch, build):
-    buildVersionFileName = 'BuildVersion.h'
-
+def main(filepath, major, minor, patch, build):
     # We first check to see if the file exists
-    if (os.path.isfile(buildVersionFileName)):
+    if (os.path.isfile(filepath)):
         print("Updating BuildVersion.h")
 
         for line in fileinput.input(buildVersionFileName, inplace = 1):
@@ -33,11 +31,12 @@ def main(major, minor, patch, build):
 if __name__ == '__main__':
     # Get major, minor, and patch versions from inputs
     if len(sys.argv) != 5:
-        sys.exit("Correct usage: script.py <major version> <minor number> <patch number> <build number>")
+        sys.exit("Correct usage: script.py <file_path> <major version> <minor number> <patch number> <build number>")
 
-    major = sys.argv[1]
-    minor = sys.argv[2]
-    patch = sys.argv[3]
-    build = sys.argv[4]
+    filepath = sys.argv[1]
+    major = sys.argv[2]
+    minor = sys.argv[3]
+    patch = sys.argv[4]
+    build = sys.argv[5]
 
-    main(major, minor, patch, build)
+    main(filepath, major, minor, patch, build)
