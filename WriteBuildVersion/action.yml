@@ -3,6 +3,9 @@ description: This writes the semver info taken in as an input to the BuildVersio
 author: harmandersihra
 
 inputs:
+  filepath:
+    description: BuildVersion.h path
+    required: true
   major_version:
     description: The Major version
     required: true
@@ -25,6 +28,6 @@ runs:
     - run: ls -al ${GITHUB_ACTION_PATH}
       shell: bash
       if: runner.os == 'Linux'
-    - run: python3 ${GITHUB_ACTION_PATH}/script.py ${{inputs.major_version}} ${{inputs.minor_version}} ${{inputs.patch_version}} ${{inputs.build_version}}
+    - run: python3 ${GITHUB_ACTION_PATH}/script.py ${{inputs.filepath}} ${{inputs.major_version}} ${{inputs.minor_version}} ${{inputs.patch_version}} ${{inputs.build_version}}
       if: runner.os == 'Linux'
       shell: bash
