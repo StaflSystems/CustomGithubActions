@@ -12,7 +12,7 @@ on:
         required: true
         type: string
       build_version_path:
-        default: main/src/BuildVersion.h
+        default: src/main/BuildVersion.h
         type: string
         
     secrets:
