@@ -19,6 +19,9 @@ on:
       build_version_path:
         default: BuildVersion.h
         type: string
+      format-exclude:
+        default: ''
+        type: string
     outputs:
       tag_version:
         description: version number of tag
@@ -35,8 +38,17 @@ jobs:
       uses: actions/checkout@v2
       with:
         fetch-depth: 0
+        
+    - uses: DoozyX/clang-format-lint-action@v0.13
+      with:
+        source: '.'
+        exclude: ${{ inputs.format-exclude }}
+        extensions: 'h,cpp'
+        clangFormatVersion: 12
+        
     - name: Fetch tags
       run: git fetch --tags
+      
     - name: Checkout Submodules
       shell: bash
       run: git submodule update --init --recursive
