@@ -34,6 +34,16 @@ jobs:
         exclude: ${{ inputs.format-exclude }}
         extensions: 'h,cpp'
         clangFormatVersion: 12
+# The next few lines are to run the auto formatter. You should only ever use these on individual repos.
+#  I'm just keeping it here to keep track of it.
+#         inplace: True
+#     - uses: EndBug/add-and-commit@v4
+#       with:
+#         author_name: Clang Robot
+#         author_email: robot@example.com
+#         message: 'Committing clang-format changes'
+#       env:
+#         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         
   build:
     # The CMake configure and build commands are platform agnostic and should work equally well on Windows or Mac.
