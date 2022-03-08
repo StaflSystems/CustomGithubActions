@@ -24,6 +24,17 @@ on:
         description: private key
 
 jobs:
+  format:
+   runs-on: ubuntu-latest
+   steps:
+    - uses: actions/checkout@v2
+    - uses: DoozyX/clang-format-lint-action@v0.13
+      with:
+        source: '.'
+        exclude: ${{ inputs.format-exclude }}
+        extensions: 'h,cpp'
+        clangFormatVersion: 12
+        
   build:
     # The CMake configure and build commands are platform agnostic and should work equally well on Windows or Mac.
     # You can convert this to a matrix build if you need cross-platform coverage.
@@ -39,13 +50,6 @@ jobs:
     - uses: actions/checkout@v2
       with:
         fetch-depth: 0
-        
-    - uses: DoozyX/clang-format-lint-action@v0.13
-      with:
-        source: '.'
-        exclude: ${{ inputs.format-exclude }}
-        extensions: 'h,cpp'
-        clangFormatVersion: 12
         
     - uses: actions/setup-dotnet@v1
       with:
