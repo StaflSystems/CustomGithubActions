@@ -111,11 +111,17 @@ jobs:
       uses: tj-actions/branch-names@v5.1
       
     - name: Create a GitHub release
-      if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/dev')
+      if: startsWith(github.ref, 'refs/heads/dev')
       uses: ncipollo/release-action@v1
       with:
         artifacts: "release-artifacts-renamed/*"
         tag: ${{steps.gitversion.outputs.major}}.${{steps.gitversion.outputs.minor}}.${{steps.gitversion.outputs.patch}}+${{steps.gitversion.outputs.build}}-${{ steps.branch-name.outputs.current_branch }}
+    - name: Create a GitHub release
+      if: github.ref == 'refs/heads/main')
+      uses: ncipollo/release-action@v1
+      with:
+        artifacts: "release-artifacts-renamed/*"
+        tag: ${{steps.gitversion.outputs.major}}.${{steps.gitversion.outputs.minor}}.${{steps.gitversion.outputs.patch}}+${{steps.gitversion.outputs.build}}
 
     - name: Delete dev Branch
       if: startsWith(github.ref, 'refs/heads/dev')
