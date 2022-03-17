@@ -117,7 +117,7 @@ jobs:
         artifacts: "release-artifacts-renamed/*"
         tag: ${{steps.gitversion.outputs.major}}.${{steps.gitversion.outputs.minor}}.${{steps.gitversion.outputs.patch}}+${{steps.gitversion.outputs.build}}-${{ steps.branch-name.outputs.current_branch }}
     - name: Create a GitHub release
-      if: github.ref == 'refs/heads/main')
+      if: github.ref == 'refs/heads/main'
       uses: ncipollo/release-action@v1
       with:
         artifacts: "release-artifacts-renamed/*"
