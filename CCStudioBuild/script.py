@@ -46,6 +46,7 @@ if __name__ == '__main__':
         sys.exit("Invalid usage. Correct usage: ./script.py <project_name> <build_config>")
 
     project_name = sys.argv[1]
+    print(sys.argv[2])
     build_configs = sys.argv[2].split(",")
 
     main(project_name, build_configs)
