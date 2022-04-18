@@ -21,7 +21,7 @@ def main(version: str, globbing_patterns: str, destination: str):
     for artifact in artifacts:
         copyfile(
             str(artifact),
-            str(destination_dir / f"{artifact.stem}_{version}{artifact.suffix}"),
+            str(destination_dir / f"{artifact.stem}_{version}_{artifact.parents[0]}{artifact.suffix}"),
         )
 
 
