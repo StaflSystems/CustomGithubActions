@@ -22,6 +22,10 @@ on:
       format-exclude:
         default: ''
         type: string
+      increment-build:
+        required: false
+        type: boolean
+        default: true
     outputs:
       tag_version:
         description: version number of tag
@@ -63,6 +67,7 @@ jobs:
         versionSpec: '5.x'
 
     - name: Determine Version
+      if: ${{ inputs.increment-build }}
       id: gitversion
       uses: StaflSystems/CustomGithubActions/ExecuteGitVersion@main
       
