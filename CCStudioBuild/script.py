@@ -6,7 +6,7 @@ import subprocess
 import sys
 
 
-def main(project_name, build_config):
+def main(project_name, build_configs):
         # We need to be one directory up to simplify paths
     os.chdir("..")
     
@@ -32,11 +32,12 @@ def main(project_name, build_config):
             raise RuntimeError
 
     # Build project
-    build_command = "{} -noSplash -data {} -application com.ti.ccstudio.apps.projectBuild -ccs.projects {} " \
-                    "-ccs.configuration {}".format(eclipse_path, workspace, project_name, build_config)
-    print(build_command)
-    if os.system(build_command) != 0:
-        raise RuntimeError
+    for config in build_configs:
+        build_command = "{} -noSplash -data {} -application com.ti.ccstudio.apps.projectBuild -ccs.projects {} " \
+                        "-ccs.configuration {}".format(eclipse_path, workspace, project_name, config)
+        print(build_command)
+        if os.system(build_command) != 0:
+            raise RuntimeError
 
 
 if __name__ == '__main__':
@@ -45,6 +46,7 @@ if __name__ == '__main__':
         sys.exit("Invalid usage. Correct usage: ./script.py <project_name> <build_config>")
 
     project_name = sys.argv[1]
-    build_config = sys.argv[2]
+    print(sys.argv[2])
+    build_configs = sys.argv[2].split(",")
 
-    main(project_name, build_config)
+    main(project_name, build_configs)
