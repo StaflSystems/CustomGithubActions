@@ -81,7 +81,7 @@ jobs:
         build_version: ${{steps.gitversion.outputs.build}}
         
     - name: Build Project
-      uses: StaflSystems/CustomGithubActions/CCStudioBuild@main
+      uses: StaflSystems/CustomGithubActions/CCStudioBuild@feature/add-support-for-multiple-build-configs
       with:
         project_name: ${{ inputs.project_name }}
         build_config: ${{ inputs.build_config }}
