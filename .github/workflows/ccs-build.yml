@@ -84,7 +84,7 @@ jobs:
       uses: StaflSystems/CustomGithubActions/CCStudioBuild@main
       with:
         project_name: ${{ inputs.project_name }}
-        build_config: ${{ inputs.build_configs }}
+        build_config: ${{ inputs.build_config }}
 
     - name: Collect Release Artifacts
       uses: StaflSystems/CustomGithubActions/CollectReleaseArtifacts@main
