@@ -7,7 +7,7 @@ on:
         description: This is the name of the project being built
         required: true
         type: string
-      build_configs:
+      build_config:
         description: These are the build configs you want to build in CCStudio. Make this a comma separated list e.g. "Debug,Heartbeat_Disabled"
         required: true
         type: string
