@@ -5,6 +5,7 @@
 from os import mkdir
 import sys
 from pathlib import Path
+from genericpath import exists
 from typing import List
 from shutil import copyfile
 
@@ -19,11 +20,15 @@ def main(version: str, globbing_patterns: str, destination: str):
         artifacts += list(current_dir.glob(pattern))
 
     for artifact in artifacts:
+        destination_filename = str(destination_dir /
+                                   f"{artifact.stem}_{version}{artifact.suffix}")
+        if (exists(destination_filename)):
+            destination_filename = str(destination_dir /
+                                       f"{artifact.parents[0]}{artifact.stem}_{version}{artifact.suffix}".replace('/', '_'))
         copyfile(
             str(artifact),
-            str(destination_dir / f"{artifact.stem}_{version}_{artifact.parents[0]}{artifact.suffix}"),
+            destination_filename
         )
-
 
 if __name__ == "__main__":
     if len(sys.argv) != 4:
