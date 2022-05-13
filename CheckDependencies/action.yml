@@ -7,7 +7,7 @@ inputs:
     required: true
     description: access token for checking dependencies in all Stafl Systems repos
 
-jobs:
+runs:
   check_dependencies:
     runs-on: ubuntu-latest
     name: Check Dependencies
