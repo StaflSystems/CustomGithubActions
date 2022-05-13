@@ -51,7 +51,7 @@ jobs:
   check_dependencies:
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'pull_request' }}
-    name: Check Dependencies Action
+    name: Check Dependencies
     steps:
       - name: Check Dependencies
         uses: StaflSystems/CustomGithubActions/CheckDependencies@feature/dependency-check
