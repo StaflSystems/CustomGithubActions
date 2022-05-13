@@ -44,6 +44,16 @@ jobs:
 #         message: 'Committing clang-format changes'
 #       env:
 #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  check_dependencies:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'pull_request' }}
+    name: Check Dependencies
+    steps:
+      - name: Check Dependencies
+        uses: StaflSystems/CustomGithubActions/CheckDependencies@feature/dependency-check
+        with:
+          STAFL_CI_PRIVATE_KEY: ${{ secrets.STAFL_CI_PRIVATE_KEY }}   
         
   build:
     # The CMake configure and build commands are platform agnostic and should work equally well on Windows or Mac.
