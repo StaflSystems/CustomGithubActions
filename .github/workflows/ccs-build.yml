@@ -48,8 +48,18 @@ jobs:
         extensions: 'h,cpp'
         clangFormatVersion: 12
 
+  check_dependencies_action:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'pull_request' }}
+    name: Check Dependencies Action
+    steps:
+      uses: StaflSystems/CustomGithubActions/CheckDependencies@feature/dependency-check
+      with:
+        STAFL_CI_PRIVATE_KEY: ${{ secrets.STAFL_CI_PRIVATE_KEY }}
+
   check_dependencies:
     runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'pull_request' }}
     name: Check Dependencies
     steps:
       - name: Get Auth Token
@@ -61,6 +71,7 @@ jobs:
       - uses: gregsdennis/dependencies-action@main
         env:
           GITHUB_TOKEN: ${{ steps.get-auth-token.outputs.token }}
+    
     
   build:
     runs-on: self-hosted

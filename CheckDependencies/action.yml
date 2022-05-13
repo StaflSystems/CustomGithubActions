@@ -1,0 +1,23 @@
+name: Check Code Review Dependencies
+description: This action checks for coede review dependencies documented in the first comment of a PR
+author: thebhef
+
+inputs:
+  STAFL_CI_PRIVATE_KEY:
+    required: true
+    description: access token for checking dependencies in all Stafl Systems repos
+
+jobs:
+  check_dependencies:
+    runs-on: ubuntu-latest
+    name: Check Dependencies
+    steps:
+      - name: Get Auth Token
+        id: get-auth-token
+        run: |
+          echo "${{ inputs.STAFL_CI_PRIVATE_KEY }}" > key.pem
+          TOKEN=`npx https://github.com/StaflSystems/github-app-installation-access-token get -a 159011 -i 21323630 -k "@key.pem"`
+          echo "::set-output name=token::$TOKEN"
+      - uses: gregsdennis/dependencies-action@main
+        env:
+          GITHUB_TOKEN: ${{ steps.get-auth-token.outputs.token }}
