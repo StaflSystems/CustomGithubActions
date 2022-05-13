@@ -32,7 +32,7 @@ on:
         value: ${{ jobs.build.outputs.tag_version }}
 
     secrets:
-      STAFL_CI_TOKEN:
+      STAFL_CI_PRIVATE_KEY:
         required: true
         description: access token for dependency checking
 
