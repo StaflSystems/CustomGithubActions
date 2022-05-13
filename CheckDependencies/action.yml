@@ -11,6 +11,7 @@ runs:
   using: composite
   steps:
     - name: Get Auth Token
+      shell: bash
       id: get-auth-token
       run: |
         echo "${{ inputs.STAFL_CI_PRIVATE_KEY }}" > key.pem
