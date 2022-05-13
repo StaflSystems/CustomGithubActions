@@ -53,9 +53,10 @@ jobs:
     if: ${{ github.event_name == 'pull_request' }}
     name: Check Dependencies Action
     steps:
-      uses: StaflSystems/CustomGithubActions/CheckDependencies@feature/dependency-check
-      with:
-        STAFL_CI_PRIVATE_KEY: ${{ secrets.STAFL_CI_PRIVATE_KEY }}
+      - name: Check Dependencies
+        uses: StaflSystems/CustomGithubActions/CheckDependencies@feature/dependency-check
+        with:
+          STAFL_CI_PRIVATE_KEY: ${{ secrets.STAFL_CI_PRIVATE_KEY }}
 
   check_dependencies:
     runs-on: ubuntu-latest
