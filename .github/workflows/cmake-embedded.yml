@@ -22,6 +22,9 @@ on:
       ACTIONS_SSH_PRIVATE_KEY:
         required: true
         description: private key
+      STAFL_CI_PRIVATE_KEY:
+        required: true
+        description: access token for dependency checking
 
 jobs:
   format:
