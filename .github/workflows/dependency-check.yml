@@ -1,0 +1,15 @@
+on: 
+  workflow_call:
+    secrets:
+      STAFL_CI_TOKEN:
+        required: true
+        description: access token for dependency checking
+
+jobs:
+  check_dependencies:
+    runs-on: ubuntu-latest
+    name: Check Dependencies
+    steps:
+    - uses: gregsdennis/dependencies-action@main
+      env:
+        GITHUB_TOKEN: ${{ secrets.STAFL_CI_TOKEN }}
