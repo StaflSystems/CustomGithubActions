@@ -117,7 +117,7 @@ jobs:
       if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/dev')
       with:
         version: ${{steps.gitversion.outputs.major}}.${{steps.gitversion.outputs.minor}}.${{steps.gitversion.outputs.patch}}+${{steps.gitversion.outputs.build}}
-        artifacts: "build/bin/**/*.bin,build/bin/**/*.out,build/bin/**/*.elf,docs/**,release-artifacts/*"
+        artifacts: "build/bin/**/*.bin,build/bin/**/*.out,build/bin/**/*.elf,docs/**/*,release-artifacts/*"
         destination: "release-artifacts-renamed"
             
     - name: Get branch name
