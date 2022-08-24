@@ -15,7 +15,7 @@ runs:
       id: get-auth-token
       run: |
         echo "${{ inputs.STAFL_CI_PRIVATE_KEY }}" > key.pem
-        TOKEN=`npx https://github.com/StaflSystems/github-app-installation-access-token get -a 159011 -i 21323630 -k "@key.pem"`
+        TOKEN=`npx github:StaflSystems/github-app-installation-access-token@main get -a 159011 -i 21323630 -k "@key.pem"`
         echo "::set-output name=token::$TOKEN"
     - uses: gregsdennis/dependencies-action@main
       env:

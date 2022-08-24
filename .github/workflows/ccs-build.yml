@@ -54,7 +54,7 @@ jobs:
     name: Check Dependencies
     steps:
       - name: Check Dependencies
-        uses: StaflSystems/CustomGithubActions/CheckDependencies@main
+        uses: StaflSystems/CustomGithubActions/CheckDependencies@bugfix/check-dependency-fix
         with:
           STAFL_CI_PRIVATE_KEY: ${{ secrets.STAFL_CI_PRIVATE_KEY }}   
     
