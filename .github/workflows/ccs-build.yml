@@ -48,15 +48,15 @@ jobs:
         extensions: 'h,cpp'
         clangFormatVersion: 12
 
-  check_dependencies:
-    runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'pull_request' }}
-    name: Check Dependencies
-    steps:
-      - name: Check Dependencies
-        uses: StaflSystems/CustomGithubActions/CheckDependencies@main
-        with:
-          STAFL_CI_PRIVATE_KEY: ${{ secrets.STAFL_CI_PRIVATE_KEY }}   
+#   check_dependencies:
+#     runs-on: ubuntu-latest
+#     if: ${{ github.event_name == 'pull_request' }}
+#     name: Check Dependencies
+#     steps:
+#       - name: Check Dependencies
+#         uses: StaflSystems/CustomGithubActions/CheckDependencies@main
+#         with:
+#           STAFL_CI_PRIVATE_KEY: ${{ secrets.STAFL_CI_PRIVATE_KEY }}   
     
   build:
     runs-on: self-hosted
