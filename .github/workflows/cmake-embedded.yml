@@ -36,7 +36,7 @@ jobs:
         source: '.'
         exclude: ${{ inputs.format-exclude }}
         extensions: 'h,cpp'
-        clangFormatVersion: 12
+        clangFormatVersion: 14
 # The next few lines are to run the auto formatter. You should only ever use these on individual repos.
 #  I'm just keeping it here to keep track of it.
 #         inplace: True

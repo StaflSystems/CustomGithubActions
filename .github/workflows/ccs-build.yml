@@ -46,7 +46,7 @@ jobs:
         source: '.'
         exclude: ${{ inputs.format-exclude }}
         extensions: 'h,cpp'
-        clangFormatVersion: 12
+        clangFormatVersion: 14
 
 #   check_dependencies:
 #     runs-on: ubuntu-latest
