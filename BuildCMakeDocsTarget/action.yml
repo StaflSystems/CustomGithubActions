@@ -36,8 +36,8 @@ runs:
       id: zip-docs
       run: |
         DOCSITE_ZIP=docsite-${{inputs.build-version}}.zip
-        echo ::set-output name=zip-path::${{input.cmake-directory}}/${{input.doc-output}}/../$DOCSITE_ZIP
-        cd ${{input.cmake-directory}}/${{input.doc-output}}
+        echo ::set-output name=zip-path::${{inputs.cmake-directory}}/${{inputs.doc-output}}/../$DOCSITE_ZIP
+        cd ${{inputs.cmake-directory}}/${{inputs.doc-output}}
         zip -r ../$DOCSITE_ZIP . 
         cd -
       
