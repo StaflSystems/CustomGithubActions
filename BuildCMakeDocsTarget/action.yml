@@ -14,6 +14,7 @@ inputs:
     required: True
   build-version:
     description: the version which should be used for the tag and the name of the zip file
+    required: True
   
 runs:
   using: composite
