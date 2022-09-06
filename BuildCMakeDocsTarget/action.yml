@@ -1,0 +1,50 @@
+name: Build CMake Documentation Target
+description: This action builds release documentation via a CMake target, zips the directory up, and modifies or creates a release to include the .zip file
+author: thebhef
+
+inputs:
+  doc-target:
+    description: the name of the CMake target
+    required: True
+  cmake-directory:
+    description: the directory CMake should use to build
+    required: True
+  doc-output:
+    description: the directory containing the output of the CMake build, relative to CMake-directory
+    required: True
+  build-version:
+    description: the version which should be used for the tag and the name of the zip file
+  
+runs:
+  using: composite
+  steps:
+    # IMPROVEMENT: Update version in document as with the 'Update BuildVersion.h' step in the cmake-embedded build
+
+    - name: Configure CMake
+      # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
+      # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
+      run: cmake -B ${{cmake-directory}}
+
+    - name: Build documentation target
+      # Build your program with the given configuration
+      run: cmake --build ${{cmake-directory}} --target ${{inputs.doc-target}}
+
+    - name: Zip docs dir
+      id: zip-docs
+      run: |
+        DOCSITE_ZIP=docsite-${{inputs.build-version}}.zip
+        echo ::set-output name=zip-path::${{input.cmake-directory}}/${{input.doc-output}}/../$DOCSITE_ZIP
+        cd ${{input.cmake-directory}}/${{input.doc-output}}
+        zip -r ../$DOCSITE_ZIP . 
+        cd -
+      outputs:
+        zip-path:
+          description: path to zip file
+
+    - name: Create a GitHub release
+      uses: ncipollo/release-action@v1
+      with:
+        allowUpdates: True
+        artifacts: "${{steps.zip-docs.outputs.zip-path}}"
+        tag: ${{inputs.build-version}}
+        commit: ${{ github.sha }}
