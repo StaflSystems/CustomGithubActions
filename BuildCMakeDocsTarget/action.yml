@@ -40,10 +40,7 @@ runs:
         cd ${{input.cmake-directory}}/${{input.doc-output}}
         zip -r ../$DOCSITE_ZIP . 
         cd -
-      outputs:
-        zip-path:
-          description: path to zip file
-
+      
     - name: Create a GitHub release
       uses: ncipollo/release-action@v1
       with:
