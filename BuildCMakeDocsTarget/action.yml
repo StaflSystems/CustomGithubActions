@@ -15,6 +15,9 @@ inputs:
   build-version:
     description: the version which should be used for the tag and the name of the zip file
     required: True
+  create-tag:
+    description: whether to create a tag
+    required: True
   
 runs:
   using: composite
@@ -43,6 +46,7 @@ runs:
         cd -
       
     - name: Create a GitHub release
+      if: ${{inputs.create-tag}}
       uses: ncipollo/release-action@v1
       with:
         allowUpdates: True
