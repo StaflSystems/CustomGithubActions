@@ -49,7 +49,7 @@ runs:
         cd -
       
     - name: Create a GitHub release
-      if: ${{inputs.create-tag}} == True
+      if: ${{inputs.create-tag == 'true'}}
       uses: ncipollo/release-action@v1
       with:
         allowUpdates: True
