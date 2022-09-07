@@ -5,19 +5,19 @@ author: thebhef
 inputs:
   doc-target:
     description: the name of the CMake target
-    required: True
+    default: docs
   cmake-directory:
     description: the directory CMake should use to build
-    required: True
+    default: build
   doc-output:
     description: the directory containing the output of the CMake build, relative to cmake-directory
-    required: True
+    default: docs/docs/sphinx
   build-version:
     description: the version which should be used for the tag and the name of the zip file
     required: True
   create-tag:
     description: whether to create a tag
-    required: True
+    default: True
   
 runs:
   using: composite
@@ -26,7 +26,7 @@ runs:
       shell: bash
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
-      run: cmake -B ${{inputs.cmake-directory}}
+      run: cmake -B ${{inputs.cmake-directory}} -G Ninja
 
     - name: Build documentation target
       shell: bash
