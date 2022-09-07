@@ -10,7 +10,7 @@ inputs:
     description: the directory CMake should use to build
     required: True
   doc-output:
-    description: the directory containing the output of the CMake build, relative to CMake-directory
+    description: the directory containing the output of the CMake build, relative to cmake-directory
     required: True
   build-version:
     description: the version which should be used for the tag and the name of the zip file
@@ -22,8 +22,6 @@ inputs:
 runs:
   using: composite
   steps:
-    # IMPROVEMENT: Update version in document as with the 'Update BuildVersion.h' step in the cmake-embedded build
-
     - name: Configure CMake
       shell: bash
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
