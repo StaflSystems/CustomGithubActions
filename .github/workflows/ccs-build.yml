@@ -115,6 +115,6 @@ jobs:
         artifacts: "release-artifacts-renamed/*"
         tag: ${{steps.gitversion.outputs.major}}.${{steps.gitversion.outputs.minor}}.${{steps.gitversion.outputs.patch}}+${{steps.gitversion.outputs.build}}
         
-#     - name: Clean workspace
-#       uses: mickem/clean-after-action@v1
-#       if: ${{ failure() || inputs.clean_workspace }}
+    - name: Clean workspace
+      uses: mickem/clean-after-action@v1
+      if: ${{ failure() || inputs.clean_workspace }}
