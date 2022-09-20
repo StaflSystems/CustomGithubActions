@@ -19,6 +19,10 @@ on:
       build_version_path:
         default: BuildVersion.h
         type: string
+      run-format:
+        required: False
+        default: True
+        type: boolean
       format-exclude:
         default: ''
         type: string
@@ -38,6 +42,7 @@ on:
 
 jobs:
   format:
+    if: run-format
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
