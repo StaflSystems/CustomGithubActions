@@ -42,7 +42,7 @@ on:
 
 jobs:
   format:
-    if: run-format
+    if: ${{ inputs.run-format }}
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
