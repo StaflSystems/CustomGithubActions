@@ -77,9 +77,9 @@ jobs:
     - name: Fetch tags
       run: git fetch --tags
       
-#     - name: Checkout Submodules TEST
-#       shell: pwsh
-#       run: $env:UserName && git submodule update --init --recursive
+    - name: Checkout Submodules
+      shell: pwsh
+      run: $env:UserName && git submodule update --init --recursive
       
     - name: Install GitVersion
       uses: gittools/actions/gitversion/setup@v0.9.7
