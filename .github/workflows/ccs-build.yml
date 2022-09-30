@@ -78,8 +78,8 @@ jobs:
       run: git fetch --tags
       
     - name: Checkout Submodules
-      shell: bash
-      run: whoami && git submodule update --init --recursive
+      shell: cmd
+      run: git submodule update --init --recursive
       
     - name: Install GitVersion
       uses: gittools/actions/gitversion/setup@v0.9.7
