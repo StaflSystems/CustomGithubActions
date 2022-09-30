@@ -77,7 +77,7 @@ jobs:
     - name: Fetch tags
       run: git fetch --tags
       
-    - name: Checkout Submodules
+    - name: Checkout Submodules TEST
       shell: pwsh
       run: $env:UserName && git submodule update --init --recursive
       
