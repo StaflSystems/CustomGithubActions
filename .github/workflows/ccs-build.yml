@@ -78,7 +78,7 @@ jobs:
       run: git fetch --tags
       
     - name: Checkout Submodules
-      shell: bash
+      shell: cmd
       run: git submodule update --init --recursive
       
     - name: Install GitVersion
