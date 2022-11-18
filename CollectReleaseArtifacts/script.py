@@ -11,6 +11,8 @@ from shutil import copyfile
 
 
 def main(version: str, globbing_patterns: str, destination: str):
+    print(os.getcwd())
+
     current_dir = Path(".")
     destination_dir = Path(destination)
     destination_dir.mkdir(parents=True, exist_ok=True)
