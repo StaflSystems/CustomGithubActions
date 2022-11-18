@@ -20,7 +20,7 @@ def main(version: str, globbing_patterns: str, destination: str):
         artifacts += list(current_dir.glob(pattern))
 
     for artifact in artifacts:
-        println("{str(artifact)}")
+        print(f"{str(artifact)}")
         destination_filename = str(destination_dir /
                                    f"{artifact.stem}_{version}{artifact.suffix}")
         if (exists(destination_filename)):
