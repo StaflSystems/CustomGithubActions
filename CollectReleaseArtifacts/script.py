@@ -2,7 +2,7 @@
 
 # This script collects release artifacts in a folder and appends the version to their name.
 
-from os import mkdir
+import os
 import sys
 from pathlib import Path
 from genericpath import exists
