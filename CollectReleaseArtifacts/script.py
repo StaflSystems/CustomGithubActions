@@ -19,7 +19,7 @@ def main(version: str, globbing_patterns: str, destination: str):
 
     artifacts: List[Path] = []
     for pattern in globbing_patterns.split(","):
-        artifacts += list(current_dir.glob(pattern))
+        artifacts.extend([f for f in current_dir.glob(pattern) if f.is_file()])
 
     for artifact in artifacts:
         print(f"{str(artifact)}")
