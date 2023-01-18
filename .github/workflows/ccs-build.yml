@@ -45,7 +45,7 @@ jobs:
     if: ${{ inputs.run-format }}
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - uses: DoozyX/clang-format-lint-action@v0.14
       with:
         source: '.'
@@ -70,7 +70,7 @@ jobs:
         
     steps:
     - name: Checkout Repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         fetch-depth: 0
 
