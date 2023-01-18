@@ -1,4 +1,4 @@
-mode: ContinuousDeployment
+mode: Mainline
 update-build-number: true
 commit-message-incrementing: Enabled
 branches:
