@@ -36,7 +36,7 @@ def main(filepath, major, minor, patch, pre_release_tag, pre_release_number):
 
 if __name__ == '__main__':
     # Get major, minor, and patch versions from inputs
-    if len(sys.argv) < 6:
+    if len(sys.argv) < 5:
         sys.exit("Correct usage: script.py <file_path> <major version> <minor number> <patch number> <PreRelease Tag> <PreRelease Number>")
 
     filepath = sys.argv[1]
