@@ -7,12 +7,12 @@ import fileinput
 import sys
 import os
 
-def main(filepath, major, minor, patch, pr_tag, pr_number):
+def main(filepath, major, minor, patch, pre_release_tag, pre_release_number):
     # Figure out which pre-release index to use
-    if(pr_tag.isnumeric()):
-        build = pr_tag
+    if(pre_release_tag.isnumeric()):
+        build = pre_release_tag
     else:
-        build = pr_number
+        build = pre_release_number
 
     # We first check to see if the file exists
     if (os.path.isfile(filepath)):
@@ -43,7 +43,7 @@ if __name__ == '__main__':
     major = sys.argv[2]
     minor = sys.argv[3]
     patch = sys.argv[4]
-    pr_tag = sys.argv[5]
-    pr_number = sys.argv[6]
+    pre_release_tag = sys.argv[5]
+    pre_release_number = sys.argv[6]
 
-    main(filepath, major, minor, patch, pr_tag, pr_number)
+    main(filepath, major, minor, patch, pre_release_tag, pre_release_number)
