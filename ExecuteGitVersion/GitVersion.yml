@@ -7,12 +7,12 @@ branches:
     increment: None
     is-mainline: true
   dev:
-    regex: ^dev
+    regex: ^dev-
     increment: None
     is-mainline: false
     source-branches: ['main', 'feature', 'bugfix']
   bugfix:
-    regex: ^bugfix
+    regex: ^bugfix/
     increment: None
     is-mainline: false
     source-branches: ['main', 'bugfix']
