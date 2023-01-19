@@ -7,10 +7,16 @@ import fileinput
 import sys
 import os
 
-def main(filepath, major, minor, patch, build):
+def main(filepath, major, minor, patch, pre_release_tag, pre_release_number):
+    # Figure out which pre-release index to use
+    if(pre_release_tag.isnumeric()):
+        build = pre_release_tag
+    else:
+        build = pre_release_number
+
     # We first check to see if the file exists
     if (os.path.isfile(filepath)):
-        print("Updating BuildVersion.h")
+        print("Updating BuildVersion.h with "+major+"."+minor+"."+patch+"+"+build)
 
         for line in fileinput.input(filepath, inplace = 1):
             if "major" in line:
@@ -30,13 +36,14 @@ def main(filepath, major, minor, patch, build):
 
 if __name__ == '__main__':
     # Get major, minor, and patch versions from inputs
-    if len(sys.argv) < 5:
-        sys.exit("Correct usage: script.py <file_path> <major version> <minor number> <patch number> <build number>")
+    if len(sys.argv) < 6:
+        sys.exit("Correct usage: script.py <file_path> <major version> <minor number> <patch number> <PreRelease Tag> <PreRelease Number>")
 
     filepath = sys.argv[1]
     major = sys.argv[2]
     minor = sys.argv[3]
     patch = sys.argv[4]
-    build = sys.argv[5] if len(sys.argv) == 6 else '0'
+    pre_release_tag = sys.argv[5]
+    pre_release_number = sys.argv[6]
 
-    main(filepath, major, minor, patch, build)
+    main(filepath, major, minor, patch, pre_release_tag, pre_release_number)
