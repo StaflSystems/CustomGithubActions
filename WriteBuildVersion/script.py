@@ -9,7 +9,9 @@ import os
 
 def main(filepath, major, minor, patch, pre_release_tag, pre_release_number):
     # Figure out which pre-release index to use
-    if(pre_release_tag.isnumeric() or pre_release_number==None):
+    if(pre_release_tag=None and pre_release_number==None):
+        build = 0
+    elif(pre_release_tag.isnumeric() or pre_release_number==None):
         build = pre_release_tag
     else:
         build = pre_release_number
@@ -37,16 +39,21 @@ def main(filepath, major, minor, patch, pre_release_tag, pre_release_number):
 if __name__ == '__main__':
     # Get major, minor, and patch versions from inputs
     if len(sys.argv) < 5:
-        sys.exit("Correct usage: script.py <file_path> <major version> <minor number> <patch number> <PreRelease Tag> <PreRelease Number>")
+        sys.exit("Correct usage needs at least: script.py <file_path> <major version> <minor number> <patch number>")
 
     filepath = sys.argv[1]
     major = sys.argv[2]
     minor = sys.argv[3]
     patch = sys.argv[4]
-    pre_release_tag = sys.argv[5]
-    try:
-        pre_release_number = sys.argv[6]
-    except:
+    
+    if len(sys.argv) == 5:
+        pre_release_tag = None
         pre_release_number = None
+    elif len(sys.argv) == 6:
+        pre_release_tag = sys.argv[5]
+        pre_release_number = None
+    elif len(sys.argv) == 7:
+        pre_release_tag = sys.argv[5]
+        pre_release_number = sys.argv[6]
 
     main(filepath, major, minor, patch, pre_release_tag, pre_release_number)
