@@ -3,5 +3,11 @@ update-build-number: true
 commit-message-incrementing: Enabled
 branches:
   main:
+    regex: ^main$
     increment: None
-    regex: main$
+    is-mainline: true
+  dev:
+    regex: ^dev
+    increment: None
+    is-mainline: false
+  
