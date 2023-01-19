@@ -16,7 +16,7 @@ def main(filepath, major, minor, patch, pr_tag, pr_number):
 
     # We first check to see if the file exists
     if (os.path.isfile(filepath)):
-        print("Updating BuildVersion.h")
+        print("Updating BuildVersion.h with "+major+"."+minor+"."+patch+"+"+build)
 
         for line in fileinput.input(filepath, inplace = 1):
             if "major" in line:
