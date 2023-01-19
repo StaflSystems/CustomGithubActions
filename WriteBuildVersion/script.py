@@ -9,7 +9,7 @@ import os
 
 def main(filepath, major, minor, patch, pre_release_tag, pre_release_number):
     # Figure out which pre-release index to use
-    if(pre_release_tag=None and pre_release_number==None):
+    if(pre_release_tag==None and pre_release_number==None):
         build = 0
     elif(pre_release_tag.isnumeric() or pre_release_number==None):
         build = pre_release_tag
