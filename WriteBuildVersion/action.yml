@@ -15,19 +15,22 @@ inputs:
   patch_version:
     description: The Patch version
     required: true
-  build_version:
-    description: The Build version
+  preReleaseTag:
+    description: The pre-release tag
+    required: true
+  preReleaseNumber:
+    description: The pre-release number
     required: true
     
 runs:
   using: composite
   steps:
-    - run: ${{ github.action_path }}\script.py ${{inputs.filepath}} ${{inputs.major_version}} ${{inputs.minor_version}} ${{inputs.patch_version}} ${{inputs.build_version}}
+    - run: ${{ github.action_path }}\script.py ${{inputs.filepath}} ${{inputs.major_version}} ${{inputs.minor_version}} ${{inputs.patch_version}} ${{inputs.preReleaseTag}} ${{inputs.preReleaseNumber}}
       shell: powershell
       if: runner.os != 'Linux'
     - run: ls -al ${GITHUB_ACTION_PATH}
       shell: bash
       if: runner.os == 'Linux'
-    - run: python3 ${GITHUB_ACTION_PATH}/script.py ${{inputs.filepath}} ${{inputs.major_version}} ${{inputs.minor_version}} ${{inputs.patch_version}} ${{inputs.build_version}}
+    - run: python3 ${GITHUB_ACTION_PATH}/script.py ${{inputs.filepath}} ${{inputs.major_version}} ${{inputs.minor_version}} ${{inputs.patch_version}} ${{inputs.preReleaseTag}} ${{inputs.preReleaseNumber}}
       if: runner.os == 'Linux'
       shell: bash
