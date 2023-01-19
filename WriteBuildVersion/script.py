@@ -46,14 +46,14 @@ if __name__ == '__main__':
     minor = sys.argv[3]
     patch = sys.argv[4]
     
-    if len(sys.argv) == 5:
+    try:
+        pre_release_tag = sys.argv[5]
+    except:
         pre_release_tag = None
-        pre_release_number = None
-    elif len(sys.argv) == 6:
-        pre_release_tag = sys.argv[5]
-        pre_release_number = None
-    elif len(sys.argv) == 7:
-        pre_release_tag = sys.argv[5]
+        
+    try:
         pre_release_number = sys.argv[6]
+    except:
+        pre_release_number = None
 
     main(filepath, major, minor, patch, pre_release_tag, pre_release_number)
