@@ -10,4 +10,5 @@ branches:
     regex: ^dev
     increment: None
     is-mainline: false
+    source-branches: ['main', 'feature', 'bugfix']
   
