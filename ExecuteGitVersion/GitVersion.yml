@@ -11,4 +11,9 @@ branches:
     increment: None
     is-mainline: false
     source-branches: ['main', 'feature', 'bugfix']
+  bugfix:
+    regex: ^bugfix
+    increment: None
+    is-mainline: false
+    source-branches: ['main', 'bugfix']
   
