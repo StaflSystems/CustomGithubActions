@@ -31,6 +31,6 @@ runs:
     - run: ls -al ${GITHUB_ACTION_PATH}
       shell: bash
       if: runner.os == 'Linux'
-    - run: python3 ${GITHUB_ACTION_PATH}/script.py ${{inputs.filepath}} ${{inputs.major_version}} ${{inputs.minor_version}} ${{inputs.patch_version}} ${{inputs.pre_release_tag}} ${{inputs.pre_release_number}}
+    - run: python3 ${GITHUB_ACTION_PATH}/script.py ${{inputs.filepath}} ${GITVERSION_MAJOR} ${GITVERSION_MINOR} ${GITVERSION_PATCH} ${GITVERSION_PRERELEASETAG} ${GITVERSION_PRERELEASENUMBER}
       if: runner.os == 'Linux'
       shell: bash
