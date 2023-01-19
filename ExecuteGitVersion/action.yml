@@ -10,7 +10,7 @@ outputs:
   patch:
     value: ${{ steps.gitversion.outputs.patch }}
   build:
-    value: ${{ steps.gitversion.outputs.PreReleaseNumber }}
+    value: ${{ steps.gitversion.outputs.PreReleaseTag }}
   fullSemVer:
     value: ${{ steps.gitversion.outputs.fullSemVer }}
 
