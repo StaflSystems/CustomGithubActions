@@ -66,7 +66,7 @@ jobs:
   build:
     runs-on: self-hosted
     outputs:
-      tag_version: ${{steps.gitversion.outputs.major}}.${{steps.gitversion.outputs.minor}}.${{steps.gitversion.outputs.patch}}+${{steps.gitversion.outputs.build}}
+      tag_version: ${{steps.gitversion.outputs.major}}.${{steps.gitversion.outputs.minor}}.${{steps.gitversion.outputs.patch}}+${{steps.build_export.outputs.BUILD_NUMBER}}
         
     steps:
     - name: Checkout Repository
@@ -90,7 +90,20 @@ jobs:
       if: ${{ inputs.increment-build }}
       id: gitversion
       uses: StaflSystems/CustomGithubActions/ExecuteGitVersion@main
+
+    - name: Display SemVer
+      if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/dev')
+      run: |
+        echo "FullSemVer: ${{steps.gitversion.outputs.FullSemVer}}"
+        echo "PreReleaseTag: ${{steps.gitversion.outputs.preReleaseTag}}"
       
+    - name: Export Build Number
+      id: build_export
+      if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/dev')
+      run: |
+        if("${{steps.gitversion.outputs.preReleaseTag}}" -match "^\d+$") {$build=${{steps.gitversion.outputs.preReleaseTag}}} else {$build=${{steps.gitversion.outputs.preReleaseNumber}}}
+        echo "BUILD_NUMBER=$build" >> $GITHUB_OUTPUT
+    
     - name: Update BuildVersion.h
       uses: StaflSystems/CustomGithubActions/WriteBuildVersion@main
       with:
@@ -98,7 +111,8 @@ jobs:
         major_version: ${{steps.gitversion.outputs.major}}
         minor_version: ${{steps.gitversion.outputs.minor}}
         patch_version: ${{steps.gitversion.outputs.patch}}
-        build_version: ${{steps.gitversion.outputs.build}}
+        pre_release_tag: ${{steps.gitversion.outputs.preReleaseTag}}
+        pre_release_number: ${{steps.gitversion.outputs.preReleaseNumber}}
         
     - name: Build Project
       uses: StaflSystems/CustomGithubActions/CCStudioBuild@main
@@ -109,7 +123,7 @@ jobs:
     - name: Collect Release Artifacts
       uses: StaflSystems/CustomGithubActions/CollectReleaseArtifacts@main
       with:
-        version: ${{steps.gitversion.outputs.major}}.${{steps.gitversion.outputs.minor}}.${{steps.gitversion.outputs.patch}}+${{steps.gitversion.outputs.build}}
+        version: ${{steps.gitversion.outputs.major}}.${{steps.gitversion.outputs.minor}}.${{steps.gitversion.outputs.patch}}+${{steps.gitversion.outputs.preReleaseTag}}
         artifacts: "*/*.bin,*/*.out,**/*.dbc,release-artifacts/*"
         destination: "release-artifacts-renamed"
 
@@ -118,7 +132,7 @@ jobs:
       uses: ncipollo/release-action@v1
       with:
         artifacts: "release-artifacts-renamed/*"
-        tag: ${{steps.gitversion.outputs.major}}.${{steps.gitversion.outputs.minor}}.${{steps.gitversion.outputs.patch}}+${{steps.gitversion.outputs.build}}
+        tag: ${{steps.gitversion.outputs.major}}.${{steps.gitversion.outputs.minor}}.${{steps.gitversion.outputs.patch}}+${{steps.gitversion.outputs.preReleaseTag}}
         
     - name: Clean workspace
       uses: mickem/clean-after-action@v1
