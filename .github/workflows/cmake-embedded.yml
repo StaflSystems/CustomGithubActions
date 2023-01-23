@@ -123,7 +123,7 @@ jobs:
       if: github.ref == 'refs/heads/main'
       uses: StaflSystems/CustomGithubActions/CollectReleaseArtifacts@main
       with:
-        version: ${{steps.gitversion.outputs.major}}.${{steps.gitversion.outputs.minor}}.${{steps.gitversion.outputs.patch}}+${{steps.gitversion.outputs.preReleaseTag}}-${{matrix.build-type}}
+        version: ${{steps.gitversion.outputs.major}}.${{steps.gitversion.outputs.minor}}.${{steps.gitversion.outputs.patch}}+${{steps.gitversion.outputs.preReleaseTag}}
         artifacts: "build/bin/**/*.bin,build/bin/**/*.out,build/bin/**/*.elf,docs/**/*,release-artifacts/**/*"
         destination: "release-artifacts-renamed"
 
