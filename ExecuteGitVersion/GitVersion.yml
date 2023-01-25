@@ -1,5 +1,16 @@
 mode: ContinuousDeployment
 update-build-number: true
 commit-message-incrementing: Enabled
-increment: None
-tag: ''
+branches:
+  main:
+    regex: ^main$
+    tag: ''
+    increment: None
+  develop:
+    regex: ^dev
+    tag: dev
+    source-branches: ['main', 'feature']
+  feature:
+    regex: ^(feature|bugfix)
+    tag: ''
+    source-branches: ['main']
