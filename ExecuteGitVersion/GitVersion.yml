@@ -1,19 +1,4 @@
-mode: Mainline
+mode: ContinuousDeployment
 update-build-number: true
 commit-message-incrementing: Enabled
-branches:
-  main:
-    regex: ^main$
-    increment: None
-    is-mainline: true
-  dev:
-    regex: ^dev-
-    increment: None
-    is-mainline: false
-    source-branches: ['main', 'feature', 'bugfix']
-  bugfix:
-    regex: ^bugfix/
-    increment: None
-    is-mainline: false
-    source-branches: ['main', 'bugfix']
-  
+increment: None
