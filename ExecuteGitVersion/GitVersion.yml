@@ -2,3 +2,4 @@ mode: ContinuousDeployment
 update-build-number: true
 commit-message-incrementing: Enabled
 increment: None
+tag: ''
