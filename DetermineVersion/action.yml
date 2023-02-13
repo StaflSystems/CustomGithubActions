@@ -1,0 +1,40 @@
+name: Determine Version
+description: This action uses StaflVersion to determine the version
+author: willson556
+
+outputs:
+  full:
+    description: "Full version number"
+    value: ${{ steps.full-version.outputs.version }}
+  major:
+    description: "Major version"
+    value: ${{ steps.major-version.outputs.version }}
+  minor:
+    description: "Minor version"
+    value: ${{ steps.minor-version.outputs.version }}
+  patch:
+    description: "Patch version"
+    value: ${{ steps.patch-version.outputs.version }}
+  build:
+    description: "Build version"
+    value: ${{ steps.build-version.outputs.version }}
+
+runs:
+  using: composite
+  steps:
+    - run: pip install git+ssh://git@github.com/StaflSystems/staflversion.git@0.2.0-ci.14
+    - id: full-version
+      run: echo "version=$(staflversion)" >> $GITHUB_OUTPUT
+      shell: bash
+    - id: major-version
+      run: echo "version=$(staflversion --major)" >> $GITHUB_OUTPUT
+      shell: bash
+    - id: minor-version
+      run: echo "version=$(staflversion --minor)" >> $GITHUB_OUTPUT
+      shell: bash
+    - id: patch-version
+      run: echo "version=$(staflversion --patch)" >> $GITHUB_OUTPUT
+      shell: bash
+    - id: build-version
+      run: echo "version=$(staflversion --build)" >> $GITHUB_OUTPUT
+      shell: bash

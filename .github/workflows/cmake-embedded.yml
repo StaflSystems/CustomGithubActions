@@ -74,33 +74,24 @@ jobs:
       with:
         fetch-depth: 0
         
-    - uses: actions/setup-dotnet@v3
-      with:
-        dotnet-version: '6.0.x'
-        
-    - name: Install GitVersion
-      uses: gittools/actions/gitversion/setup@v0.9.15
-      with:
-        versionSpec: '5.x'
-        
     - uses: webfactory/ssh-agent@v0.7.0
       with:
         ssh-private-key: ${{ secrets.ACTIONS_SSH_PRIVATE_KEY }}
         
     - name: Determine Version
       if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/dev')
-      id: gitversion
-      uses: StaflSystems/CustomGithubActions/ExecuteGitVersion@main
+      id: staflversion
+      uses: StaflSystems/CustomGithubActions/DetermineVersion@main
       
     - name: Update BuildVersion.h
       uses: StaflSystems/CustomGithubActions/WriteBuildVersion@main
       if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/dev')
       with:
         filepath: ${{inputs.build_version_path}}
-        major_version: ${{steps.gitversion.outputs.major}}
-        minor_version: ${{steps.gitversion.outputs.minor}}
-        patch_version: ${{steps.gitversion.outputs.patch}}
-        build_version: ${{steps.gitversion.outputs.build}}
+        major_version: ${{steps.staflversion.outputs.major}}
+        minor_version: ${{steps.staflversion.outputs.minor}}
+        patch_version: ${{steps.staflversion.outputs.patch}}
+        build_version: ${{steps.staflversion.outputs.build}}
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
@@ -115,14 +106,14 @@ jobs:
       if: startsWith(github.ref, 'refs/heads/dev')
       uses: StaflSystems/CustomGithubActions/CollectReleaseArtifacts@main
       with:
-        version: ${{steps.gitversion.outputs.major}}.${{steps.gitversion.outputs.minor}}.${{steps.gitversion.outputs.patch}}+${{steps.gitversion.outputs.build}}-${{steps.branch-name.outputs.current_branch}}-${{matrix.build-type}}
+        version: ${{steps.staflversion.outputs.full}}-${{steps.branch-name.outputs.current_branch}}-${{matrix.build-type}}
         artifacts: "build/bin/**/*.bin,build/bin/**/*.out,build/bin/**/*.elf,docs/**/*,release-artifacts/**/*"
         destination: "release-artifacts-renamed"
     - name: Collect Release Artifacts (main)
       if: github.ref == 'refs/heads/main'
       uses: StaflSystems/CustomGithubActions/CollectReleaseArtifacts@main
       with:
-        version: ${{steps.gitversion.outputs.major}}.${{steps.gitversion.outputs.minor}}.${{steps.gitversion.outputs.patch}}+${{steps.gitversion.outputs.build}}
+        version: ${{steps.staflversion.outputs.full}}
         artifacts: "build/bin/**/*.bin,build/bin/**/*.out,build/bin/**/*.elf,docs/**/*,release-artifacts/**/*"
         destination: "release-artifacts-renamed"
 
@@ -135,14 +126,14 @@ jobs:
       uses: ncipollo/release-action@v1
       with:
         artifacts: "release-artifacts-renamed/*"
-        tag: ${{steps.gitversion.outputs.major}}.${{steps.gitversion.outputs.minor}}.${{steps.gitversion.outputs.patch}}+${{steps.gitversion.outputs.build}}-${{steps.branch-name.outputs.current_branch}}
+        tag: ${{steps.staflversion.outputs.full}}-${{steps.branch-name.outputs.current_branch}}
         commit: ${{ github.sha }}
     - name: Create a GitHub release
       if: github.ref == 'refs/heads/main'
       uses: ncipollo/release-action@v1
       with:
         artifacts: "release-artifacts-renamed/*"
-        tag: ${{steps.gitversion.outputs.major}}.${{steps.gitversion.outputs.minor}}.${{steps.gitversion.outputs.patch}}+${{steps.gitversion.outputs.build}}
+        tag: ${{steps.staflversion.outputs.full}}
 
     - name: Delete dev Branch
       if: startsWith(github.ref, 'refs/heads/dev')
