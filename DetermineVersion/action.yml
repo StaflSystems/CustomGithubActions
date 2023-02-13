@@ -22,7 +22,7 @@ outputs:
 runs:
   using: composite
   steps:
-    - run: pip install git+ssh://git@github.com/StaflSystems/staflversion.git@0.2.0-ci.14
+    - run: pip install git+ssh://git@github.com/StaflSystems/staflversion.git
       shell: bash
     - id: full-version
       run: echo "version=$(staflversion)" >> $GITHUB_OUTPUT
