@@ -22,26 +22,55 @@ outputs:
 runs:
   using: composite
   steps:
-    - run: pip install git+ssh://git@github.com/StaflSystems/staflversion.git
-      shell: bash
+    - name: Install StaflVersion
       if: runner.os == 'Linux'
-    - id: full-version
+      shell: bash
+      run: pip install git+ssh://git@github.com/StaflSystems/staflversion.git
+      if: runner.os == 'Windows'
+      shell: powershell
+      run: pip install git+ssh://git@github.com/StaflSystems/staflversion.git
+    
+    - name: Set Full Verion
+      id: full-version
+      if: runner.os == 'Linux'
+      shell: bash
       run: echo "version=$(staflversion)" >> $GITHUB_OUTPUT
-      shell: bash
+      if: runner.os == 'Windows'
+      shell: powershell
+      run: $env:GITHUB_OUTPUT += "version=$(staflversion)"
+      
+    - name: Set Major Version
+      id: major-version
       if: runner.os == 'Linux'
-    - id: major-version
+      shell: bash
       run: echo "version=$(staflversion --major)" >> $GITHUB_OUTPUT
-      shell: bash
+      if: runner.os == 'Windows'
+      shell: powershell
+      run: $env:GITHUB_OUTPUT += "version=$(staflversion --major)"
+      
+    - name: Set Minor Version
+      id: minor-version
       if: runner.os == 'Linux'
-    - id: minor-version
+      shell: bash
       run: echo "version=$(staflversion --minor)" >> $GITHUB_OUTPUT
-      shell: bash
+      if: runner.os == 'Windows'
+      shell: powershell
+      run: $env:GITHUB_OUTPUT += "version=$(staflversion --minor)"
+      
+    - name: Set Patch Version
+      id: patch-version
       if: runner.os == 'Linux'
-    - id: patch-version
+      shell: bash
       run: echo "version=$(staflversion --patch)" >> $GITHUB_OUTPUT
-      shell: bash
+      if: runner.os == 'Windows'
+      shell: powershell
+      run: $env:GITHUB_OUTPUT += "version=$(staflversion --patch)"
+      
+    - name: Set Build Version
+      id: build-version
       if: runner.os == 'Linux'
-    - id: build-version
+      shell: bash
       run: echo "version=$(staflversion --build)" >> $GITHUB_OUTPUT
-      shell: bash
-      if: runner.os == 'Linux'
+      if: runner.os == 'Windows'
+      shell: powershell
+      run: $env:GITHUB_OUTPUT += "version=$(staflversion --build)"
