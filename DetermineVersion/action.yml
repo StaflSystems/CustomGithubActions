@@ -5,7 +5,7 @@ author: willson556
 outputs:
   full:
     description: "Full version number"
-    value: ${{ steps.full-version.outputs.version }}
+    value: ${{ steps.full-version[runner.os].id.outputs.version }}
   major:
     description: "Major version"
     value: ${{ steps.major-version.outputs.version }}
@@ -38,7 +38,7 @@ runs:
       run: echo "version=$(staflversion)" >> $GITHUB_OUTPUT
     - name: Set Full Version Windows
       if: runner.os == 'Windows'
-      id: full-version
+      id: full-version-windows
       shell: powershell
       run: $env:GITHUB_OUTPUT += "version=$(staflversion)"
       
@@ -49,7 +49,7 @@ runs:
       run: echo "version=$(staflversion --major)" >> $GITHUB_OUTPUT
     - name: Set Major Version Windows
       if: runner.os == 'Windows'
-      id: major-version
+      id: major-version-windows
       shell: powershell
       run: $env:GITHUB_OUTPUT += "version=$(staflversion --major)"
       
@@ -60,7 +60,7 @@ runs:
       run: echo "version=$(staflversion --minor)" >> $GITHUB_OUTPUT
     - name: Set Minor Version Windows
       if: runner.os == 'Windows'
-      id: minor-version
+      id: minor-version-windows
       shell: powershell
       run: $env:GITHUB_OUTPUT += "version=$(staflversion --minor)"
       
@@ -71,7 +71,7 @@ runs:
       run: echo "version=$(staflversion --patch)" >> $GITHUB_OUTPUT
     - name: Set Patch Version Windows
       if: runner.os == 'Windows'
-      id: patch-version
+      id: patch-version-windows
       shell: powershell
       run: $env:GITHUB_OUTPUT += "version=$(staflversion --patch)"
       
@@ -82,6 +82,6 @@ runs:
       run: echo "version=$(staflversion --build)" >> $GITHUB_OUTPUT
     - name: Set Build Version Windows
       if: runner.os == 'Windows'
-      id: build-version
+      id: build-version-windows
       shell: powershell
       run: $env:GITHUB_OUTPUT += "version=$(staflversion --build)"
