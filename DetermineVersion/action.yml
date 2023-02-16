@@ -24,24 +24,18 @@ runs:
   steps:
     - run: pip install git+ssh://git@github.com/StaflSystems/staflversion.git
       shell: bash
-      if: runner.os == 'Linux'
     - id: full-version
       run: echo "version=$(staflversion)" >> $GITHUB_OUTPUT
       shell: bash
-      if: runner.os == 'Linux'
     - id: major-version
       run: echo "version=$(staflversion --major)" >> $GITHUB_OUTPUT
       shell: bash
-      if: runner.os == 'Linux'
     - id: minor-version
       run: echo "version=$(staflversion --minor)" >> $GITHUB_OUTPUT
       shell: bash
-      if: runner.os == 'Linux'
     - id: patch-version
       run: echo "version=$(staflversion --patch)" >> $GITHUB_OUTPUT
       shell: bash
-      if: runner.os == 'Linux'
     - id: build-version
       run: echo "version=$(staflversion --build)" >> $GITHUB_OUTPUT
       shell: bash
-      if: runner.os == 'Linux'
