@@ -69,7 +69,7 @@ runs:
       id: patch-version
       shell: bash
       run: echo "version=$(staflversion --patch)" >> $GITHUB_OUTPUT
-    - name Set Patch Version Windows
+    - name: Set Patch Version Windows
       if: runner.os == 'Windows'
       id: patch-version
       shell: powershell
