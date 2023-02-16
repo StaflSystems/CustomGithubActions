@@ -49,23 +49,23 @@ runs:
     - run: pip install git+ssh://git@github.com/StaflSystems/staflversion.git
       shell: powershell
       if: runner.os != 'Linux'
-    - id: full-version
+    - id: win-full-version
       run: echo "version=$(staflversion)" >> $GITHUB_OUTPUT
       shell: powershell
       if: runner.os != 'Linux'
-    - id: major-version
+    - id: win-major-version
       run: echo "version=$(staflversion --major)" >> $GITHUB_OUTPUT
       shell: powershell
       if: runner.os != 'Linux'
-    - id: minor-version
+    - id: win-minor-version
       run: echo "version=$(staflversion --minor)" >> $GITHUB_OUTPUT
       shell: powershell
       if: runner.os != 'Linux'
-    - id: patch-version
+    - id: win-patch-version
       run: echo "version=$(staflversion --patch)" >> $GITHUB_OUTPUT
       shell: powershell
       if: runner.os != 'Linux'
-    - id: build-version
+    - id: win-build-version
       run: echo "version=$(staflversion --build)" >> $GITHUB_OUTPUT
       shell: powershell
       if: runner.os != 'Linux'
