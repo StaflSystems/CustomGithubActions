@@ -77,6 +77,10 @@ jobs:
     - name: Fetch tags
       run: git fetch --tags
       
+    - uses: webfactory/ssh-agent@v0.7.0
+      with:
+        ssh-private-key: ${{ secrets.ACTIONS_SSH_PRIVATE_KEY }}
+      
     - name: Checkout Submodules
       shell: cmd
       run: git submodule update --init --recursive
