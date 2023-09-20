@@ -22,7 +22,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - run: ${{ github.action_path }}\script.py ${{inputs.filepath}} ${{inputs.major_version}} ${{inputs.minor_version}} ${{inputs.patch_version}} ${{inputs.build_version}}
+    - run: python ${{ github.action_path }}\script.py ${{inputs.filepath}} ${{inputs.major_version}} ${{inputs.minor_version}} ${{inputs.patch_version}} ${{inputs.build_version}}
       shell: powershell
       if: runner.os != 'Linux'
     - run: ls -al ${GITHUB_ACTION_PATH}
