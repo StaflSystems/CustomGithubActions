@@ -22,7 +22,7 @@ outputs:
 runs:
   using: composite
   steps:
-    - run: pip install https://github.com/StaflSystems/staflversion/main/branch.zip
+    - run: pip install https://github.com/StaflSystems/staflversion/archive/main.zip
       shell: bash
     - id: full-version
       run: echo "version=$(staflversion)" >> $GITHUB_OUTPUT
