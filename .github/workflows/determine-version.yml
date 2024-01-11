@@ -1,0 +1,49 @@
+name: determine version
+
+on:
+    workflow_call:
+      outputs:
+        version_full:
+          value: ${{ jobs.determine-version.outputs.full }}
+        version_major:
+          value: ${{ jobs.determine-version.outputs.major }}
+        version_minor:
+          value: ${{ jobs.determine-version.outputs.minor }}
+        version_patch:
+          value: ${{ jobs.determine-version.outputs.patch }}
+        version_build:
+          value: ${{ jobs.determine-version.outputs.build }}
+        current_branch:
+          value: ${{ jobs.determine-version.outputs.current_branch }}
+
+jobs:
+  determine-version:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10' 
+
+      - name: Get branch name
+        id: branch-name
+        uses: tj-actions/branch-names@v6.4
+
+      - name: Determine Version
+        id: staflversion
+        uses: StaflSystems/CustomGithubActions/DetermineVersion@main
+
+      - name: Display Version
+        run: |
+            echo "Version: ${{steps.staflversion.outputs.full}}"
+    outputs:
+      full: ${{steps.staflversion.outputs.full}}
+      major: ${{steps.staflversion.outputs.major}}
+      minor: ${{steps.staflversion.outputs.minor}}
+      patch: ${{steps.staflversion.outputs.patch}}
+      build: ${{steps.staflversion.outputs.build}}
+      current_branch: ${{steps.branch-name.outputs.current_branch}}
