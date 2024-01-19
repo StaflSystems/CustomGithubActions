@@ -13,6 +13,8 @@ from shutil import copyfile
 def main(version: str, globbing_patterns: str, destination: str):
     print(os.getcwd())
 
+    sanitized_version = version.replace('/', '_')
+
     current_dir = Path(".")
     destination_dir = Path(destination)
     destination_dir.mkdir(parents=True, exist_ok=True)
@@ -24,10 +26,10 @@ def main(version: str, globbing_patterns: str, destination: str):
     for artifact in artifacts:
         print(f"{str(artifact)}")
         destination_filename = str(destination_dir /
-                                   f"{artifact.stem}_{version}{artifact.suffix}")
+                                   f"{artifact.stem}_{sanitized_version}{artifact.suffix}")
         if (exists(destination_filename)):
             destination_filename = str(destination_dir /
-                                       f"{artifact.parents[0]}{artifact.stem}_{version}{artifact.suffix}".replace('/', '_'))
+                                       f"{artifact.parents[0]}{artifact.stem}_{sanitized_version}{artifact.suffix}".replace('/', '_'))
         copyfile(
             str(artifact),
             destination_filename
