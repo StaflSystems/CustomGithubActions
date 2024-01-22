@@ -64,7 +64,7 @@ jobs:
 #           STAFL_CI_PRIVATE_KEY: ${{ secrets.STAFL_CI_PRIVATE_KEY }}   
     
   build:
-    runs-on: self-hosted
+    runs-on: ccs
     outputs:
       tag_version: ${{steps.staflversion.outputs.major}}
         
