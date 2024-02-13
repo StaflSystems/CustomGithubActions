@@ -64,7 +64,7 @@ jobs:
     # See: https://docs.github.com/en/free-pro-team@latest/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/staflsystems/stafl-devcontainer-ci
+      image: ghcr.io/staflsystems/stafl-devcontainer-ci@sha256:085e82c70a1b64fa94cf21f9f7f18b255cec010869a44de73e76994dd82d66f3
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
