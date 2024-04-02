@@ -45,23 +45,13 @@ jobs:
     if: ${{ inputs.run-format }}
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4.1.1
     - uses: DoozyX/clang-format-lint-action@v0.14
       with:
         source: '.'
         exclude: ${{ inputs.format-exclude }}
         extensions: 'h,cpp'
         clangFormatVersion: 14
-
-#   check_dependencies:
-#     runs-on: ubuntu-latest
-#     if: ${{ github.event_name == 'pull_request' }}
-#     name: Check Dependencies
-#     steps:
-#       - name: Check Dependencies
-#         uses: StaflSystems/CustomGithubActions/CheckDependencies@main
-#         with:
-#           STAFL_CI_PRIVATE_KEY: ${{ secrets.STAFL_CI_PRIVATE_KEY }}   
     
   build:
     runs-on: ccs
@@ -70,7 +60,7 @@ jobs:
         
     steps:
     - name: Checkout Repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4.1.1
       with:
         fetch-depth: 0
 
@@ -84,7 +74,7 @@ jobs:
     - name: Determine Version
       if: ${{ inputs.increment-build }}
       id: staflversion
-      uses: StaflSystems/CustomGithubActions/DetermineVersion@main
+      uses: StaflSystems/CustomGithubActions/DetermineVersion@v4.0.1
 
     - name: Display SemVer
       if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/dev')
@@ -92,7 +82,7 @@ jobs:
         echo "Version: ${{steps.staflversion.outputs.full}}"
     
     - name: Update BuildVersion.h
-      uses: StaflSystems/CustomGithubActions/WriteBuildVersion@main
+      uses: StaflSystems/CustomGithubActions/WriteBuildVersion@v4.0.1
       with:
         filepath: ${{inputs.build_version_path}}
         major_version: ${{steps.staflversion.outputs.major}}
@@ -101,13 +91,13 @@ jobs:
         build_version: ${{steps.staflversion.outputs.build}}
         
     - name: Build Project
-      uses: StaflSystems/CustomGithubActions/CCStudioBuild@main
+      uses: StaflSystems/CustomGithubActions/CCStudioBuild@v4.0.1
       with:
         project_name: ${{ inputs.project_name }}
         build_config: ${{ inputs.build_config }}
 
     - name: Collect Release Artifacts
-      uses: StaflSystems/CustomGithubActions/CollectReleaseArtifacts@main
+      uses: StaflSystems/CustomGithubActions/CollectReleaseArtifacts@v4.0.1
       with:
         version: ${{steps.staflversion.outputs.full}}
         artifacts: "*/*.bin,*/*.out,**/*.dbc,release-artifacts/*"
@@ -115,11 +105,11 @@ jobs:
 
     - name: Create a GitHub release
       if: github.ref == 'refs/heads/main'
-      uses: ncipollo/release-action@v1
+      uses: ncipollo/release-action@v1.14.0
       with:
         artifacts: "release-artifacts-renamed/*"
         tag: ${{steps.staflversion.outputs.full}}
         
     - name: Clean workspace
-      uses: mickem/clean-after-action@v1
+      uses: mickem/clean-after-action@v2.0.0
       if: ${{ failure() || inputs.clean_workspace }}
