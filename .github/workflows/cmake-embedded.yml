@@ -44,17 +44,17 @@ jobs:
     # See: https://docs.github.com/en/free-pro-team@latest/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/staflsystems/stafl-devcontainer-ci@sha256:e9793cb4f1a0d48fcb2449ebcc5ed6ab4e8f7cf77a9df442330efdf78c5eb029
+      image: ghcr.io/staflsystems/stafl-devcontainer-ci:0.1.2-0
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
     steps:   
-    - uses: actions/checkout@v4.1.1
+    - uses: actions/checkout@v4.1.2
       with:
         fetch-depth: 0
 
-    - uses: webfactory/ssh-agent@v0.7.0
+    - uses: webfactory/ssh-agent@v0.9.0
       with:
         ssh-private-key: ${{ secrets.ACTIONS_SSH_PRIVATE_KEY }}
 
