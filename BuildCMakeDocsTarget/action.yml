@@ -50,7 +50,7 @@ runs:
       
     - name: Create a GitHub release
       if: ${{inputs.create-tag == 'true'}}
-      uses: ncipollo/release-action@v1
+      uses: ncipollo/release-action@v1.14.0
       with:
         allowUpdates: True
         artifacts: "${{steps.zip-docs.outputs.zip-path}}"

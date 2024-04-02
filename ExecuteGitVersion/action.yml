@@ -18,7 +18,7 @@ runs:
   using: composite
   steps:
     - id: gitversion
-      uses: gittools/actions/gitversion/execute@v0.9.15
+      uses: gittools/actions/gitversion/execute@v1.1.1
       with:
         useConfigFile: true
         configFilePath: ${{ github.action_path }}/GitVersion.yml
