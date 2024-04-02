@@ -30,7 +30,7 @@ jobs:
   format:
    runs-on: ubuntu-latest
    steps:
-    - uses: actions/checkout@v4.1.1
+    - uses: actions/checkout@v4.1.2
     - uses: DoozyX/clang-format-lint-action@v0.17
       with:
         source: '.'
@@ -65,8 +65,10 @@ jobs:
       if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/dev')
       id: staflversion
       uses: StaflSystems/CustomGithubActions/DetermineVersion@v4.0.1
+      uses: StaflSystems/CustomGithubActions/DetermineVersion@v4.0.1
       
     - name: Update BuildVersion.h
+      uses: StaflSystems/CustomGithubActions/WriteBuildVersion@v4.0.1
       uses: StaflSystems/CustomGithubActions/WriteBuildVersion@v4.0.1
       if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/dev')
       with:
@@ -88,12 +90,14 @@ jobs:
     - name: Collect Release Artifacts (dev)
       if: startsWith(github.ref, 'refs/heads/dev')
       uses: StaflSystems/CustomGithubActions/CollectReleaseArtifacts@v4.0.1
+      uses: StaflSystems/CustomGithubActions/CollectReleaseArtifacts@v4.0.1
       with:
         version: ${{steps.staflversion.outputs.full}}-${{steps.branch-name.outputs.current_branch}}-${{matrix.build-type}}
         artifacts: "build/bin/**/*.bin,build/bin/**/*.out,build/bin/**/*.elf,docs/**/*,release-artifacts/**/*"
         destination: "release-artifacts-renamed"
     - name: Collect Release Artifacts (main)
       if: github.ref == 'refs/heads/main'
+      uses: StaflSystems/CustomGithubActions/CollectReleaseArtifacts@v4.0.1
       uses: StaflSystems/CustomGithubActions/CollectReleaseArtifacts@v4.0.1
       with:
         version: ${{steps.staflversion.outputs.full}}
@@ -103,9 +107,11 @@ jobs:
     - name: Get branch name
       id: branch-name
       uses: tj-actions/branch-names@v8.0.1
+      uses: tj-actions/branch-names@v8.0.1
       
     - name: Create a GitHub release
       if: startsWith(github.ref, 'refs/heads/dev')
+      uses: ncipollo/release-action@v1.14.0
       uses: ncipollo/release-action@v1.14.0
       with:
         artifacts: "release-artifacts-renamed/*"
@@ -113,6 +119,7 @@ jobs:
         commit: ${{ github.sha }}
     - name: Create a GitHub release
       if: github.ref == 'refs/heads/main'
+      uses: ncipollo/release-action@v1.14.0
       uses: ncipollo/release-action@v1.14.0
       with:
         artifacts: "release-artifacts-renamed/*"
