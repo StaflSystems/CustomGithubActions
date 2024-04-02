@@ -75,7 +75,6 @@ jobs:
       if: ${{ inputs.increment-build }}
       id: staflversion
       uses: StaflSystems/CustomGithubActions/DetermineVersion@v4.0.1
-      uses: StaflSystems/CustomGithubActions/DetermineVersion@v4.0.1
 
     - name: Display SemVer
       if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/dev')
@@ -83,7 +82,6 @@ jobs:
         echo "Version: ${{steps.staflversion.outputs.full}}"
     
     - name: Update BuildVersion.h
-      uses: StaflSystems/CustomGithubActions/WriteBuildVersion@v4.0.1
       uses: StaflSystems/CustomGithubActions/WriteBuildVersion@v4.0.1
       with:
         filepath: ${{inputs.build_version_path}}
@@ -94,13 +92,11 @@ jobs:
         
     - name: Build Project
       uses: StaflSystems/CustomGithubActions/CCStudioBuild@v4.0.1
-      uses: StaflSystems/CustomGithubActions/CCStudioBuild@v4.0.1
       with:
         project_name: ${{ inputs.project_name }}
         build_config: ${{ inputs.build_config }}
 
     - name: Collect Release Artifacts
-      uses: StaflSystems/CustomGithubActions/CollectReleaseArtifacts@v4.0.1
       uses: StaflSystems/CustomGithubActions/CollectReleaseArtifacts@v4.0.1
       with:
         version: ${{steps.staflversion.outputs.full}}
