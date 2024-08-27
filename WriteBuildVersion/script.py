@@ -10,22 +10,22 @@ import os
 def main(filepath, major, minor, patch, build):
     # We first check to see if the file exists
     if (os.path.isfile(filepath)):
-        print("Updating BuildVersion.h")
+        print(f"Updating {filepath}")
 
         for line in fileinput.input(filepath, inplace = 1):
-            if "major" in line:
+            if "major" in line.lower():
                 print(line.replace("0", major).rstrip())
-            elif "minor" in line:
+            elif "minor" in line.lower():
                 print(line.replace("0", minor).rstrip())
-            elif "patch" in line:
+            elif "patch" in line.lower():
                 print(line.replace("0", patch).rstrip())
-            elif "build" in line:
+            elif "build" in line.lower():
                 print(line.replace("0", build).rstrip())
             else:
                 print(line.rstrip())
     
     else:
-        print("BuildVersion.h not found. Skipping this step")
+        print(f"{filepath} not found. Skipping this step")
 
 
 if __name__ == '__main__':
