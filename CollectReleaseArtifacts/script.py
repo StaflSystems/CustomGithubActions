@@ -26,10 +26,10 @@ def main(version: str, globbing_patterns: str, destination: str):
     for artifact in artifacts:
         print(f"{str(artifact)}")
         destination_filename = str(destination_dir /
-                                   f"{artifact.stem}_{sanitized_version}{artifact.suffix}")
+                                   f"{artifact.stem}-{sanitized_version}{artifact.suffix}")
         if (exists(destination_filename)):
             destination_filename = str(destination_dir /
-                                       f"{artifact.parents[0]}{artifact.stem}_{sanitized_version}{artifact.suffix}".replace('/', '_'))
+                                       f"{artifact.parents[0]}{artifact.stem}-{sanitized_version}{artifact.suffix}".replace('/', '_'))
         copyfile(
             str(artifact),
             destination_filename
