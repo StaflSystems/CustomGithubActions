@@ -1,0 +1,27 @@
+name: Upload to Artifactory
+description: This action uploads the files in a directory (non-recursively) to Artifactory. Requires that python and the JFrog CLI are setup.
+
+inputs:
+  directory:
+    description: 'Directory containing the files to upload'
+    required: true
+  version:
+    description: 'Version to upload'
+    required: true
+  repository:
+    description: 'Artifactory repository to upload to'
+    required: true
+  organization:
+    description: 'Artifactory organization to upload to'
+    required: false
+    default: 'stafl'
+
+
+
+runs:
+  using: composite
+  steps:
+    - name: Upload
+      shell: bash
+      run: python ${GITHUB_ACTION_PATH}/upload_to_artifactory.py "${{ inputs.repository }}"" "${{ inputs.organization }}" "${{ inputs.version }}" "${{ inputs.directory }}"
+  
