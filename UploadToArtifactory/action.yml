@@ -23,5 +23,5 @@ runs:
   steps:
     - name: Upload
       shell: bash
-      run: python ${GITHUB_ACTION_PATH}/upload_to_artifactory.py "${{ inputs.repository }}"" "${{ inputs.organization }}" "${{ inputs.version }}" "${{ inputs.directory }}"
+      run: python ${GITHUB_ACTION_PATH}/upload_to_artifactory.py "${{ inputs.repository }}" "${{ inputs.organization }}" "${{ inputs.version }}" "${{ inputs.directory }}"
   
