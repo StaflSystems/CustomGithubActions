@@ -15,13 +15,15 @@ inputs:
     description: 'Artifactory organization to upload to'
     required: false
     default: 'stafl'
-
-
+  pattern:
+    description: 'Pattern to match files to upload'
+    required: false
+    default: '*'
 
 runs:
   using: composite
   steps:
     - name: Upload
       shell: bash
-      run: python ${GITHUB_ACTION_PATH}/upload_to_artifactory.py "${{ inputs.repository }}" "${{ inputs.organization }}" "${{ inputs.version }}" "${{ inputs.directory }}"
+      run: python ${GITHUB_ACTION_PATH}/upload_to_artifactory.py '${{ inputs.repository }}' '${{ inputs.organization }}' '${{ inputs.version }}' '${{ inputs.directory }}' '${{ inputs.pattern }}'
   
