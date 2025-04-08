@@ -25,7 +25,7 @@ def main(filepath, major, minor, patch, build):
                 print(line.rstrip())
     
     else:
-        print(f"{filepath} not found. Skipping this step")
+        raise FileNotFoundError(f"{filepath} not found.")
 
 
 if __name__ == '__main__':
