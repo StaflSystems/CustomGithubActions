@@ -10,7 +10,7 @@ from typing import List
 from shutil import copyfile
 
 
-def main(version: str, globbing_patterns: str, destination: str):
+def main(version: str, globbing_patterns: str, destination: str, prefix: str):
     print(os.getcwd())
 
     sanitized_version = version.replace('/', '_')
@@ -25,24 +25,32 @@ def main(version: str, globbing_patterns: str, destination: str):
 
     for artifact in artifacts:
         print(f"{str(artifact)}")
+        
+        # Primary naming strategy with prefix
         destination_filename = str(destination_dir /
-                                   f"{artifact.stem}-{sanitized_version}{artifact.suffix}")
+                                   f"{prefix}{artifact.stem}-{sanitized_version}{artifact.suffix}")
+        
+        # Collision handling strategy (includes prefix)
         if (exists(destination_filename)):
-            destination_filename = str(destination_dir /
-                                       f"{artifact.parents[0]}{artifact.stem}-{sanitized_version}{artifact.suffix}".replace('/', '_'))
+            # We construct the string and then replace slashes to flatten the path
+            flattened_name = f"{artifact.parents[0]}{artifact.stem}-{sanitized_version}{artifact.suffix}".replace('/', '_')
+            destination_filename = str(destination_dir / f"{prefix}{flattened_name}")
+            
         copyfile(
             str(artifact),
             destination_filename
         )
 
 if __name__ == "__main__":
-    if len(sys.argv) != 4:
+    if len(sys.argv) != 5:
         sys.exit(
-            "Correct usage: script.py <version> <artifact globbing patterns> <destination>"
+            "Correct usage: script.py <version> <artifact globbing patterns> <destination> <prefix>"
         )
 
     version = sys.argv[1]
     globbing_patterns = sys.argv[2]
     destination = sys.argv[3]
+    prefix = sys.argv[4]
 
-    main(version, globbing_patterns, destination)
+    main(version, globbing_patterns, destination, prefix)
+    

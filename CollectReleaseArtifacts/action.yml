@@ -13,10 +13,13 @@ inputs:
     description: destination folder for the artifacts
     required: false
     default: release
+  prefix:
+    description: Optional prefix to add to the artifact name
+    required: false
+    default: ''
 
-    
 runs:
   using: composite
   steps:
-    - run: python3 ${GITHUB_ACTION_PATH}/script.py "${{ inputs.version }}" "${{inputs.artifacts}}" "${{ inputs.destination }}"
+    - run: python3 ${GITHUB_ACTION_PATH}/script.py "${{ inputs.version }}" "${{inputs.artifacts}}" "${{ inputs.destination }}" "${{ inputs.prefix }}"
       shell: bash
