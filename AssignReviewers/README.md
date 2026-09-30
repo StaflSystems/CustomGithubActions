@@ -26,12 +26,10 @@ merge-queue PRs are skipped. Team review auto-assignment settings are left as th
 
 ## Setup
 
-1. **GitHub App** (org owner, once): the default `GITHUB_TOKEN` can't read team membership or request
-   team reviewers, so the action needs an app installation token. Create an org-owned app with
-   repository permissions *Pull requests: read and write* and *Issues: read and write*, organization
-   permission *Members: read*, and no webhook. Install it on the repositories that use the action,
-   then store its ID as org variable `REVIEW_BOT_APP_ID` and a private key as org secret
-   `REVIEW_BOT_PRIVATE_KEY`.
+1. **GitHub App**: the default `GITHUB_TOKEN` can't read team membership or request team reviewers,
+   so the action uses an installation token from the existing `staflsystemsci` app (org variable
+   `STAFL_CI_APP_ID`, org secret `STAFL_CI_PRIVATE_KEY`). It is installed on all repositories and
+   has the permissions needed: *Pull requests* and *Issues* write, *Members* read.
 2. **Each repository**: add `.github/workflows/assign-reviewers.yml`:
 
    ```yaml
@@ -48,8 +46,8 @@ merge-queue PRs are skipped. Team review auto-assignment settings are left as th
          - uses: actions/create-github-app-token@v1
            id: app
            with:
-             app-id: ${{ vars.REVIEW_BOT_APP_ID }}
-             private-key: ${{ secrets.REVIEW_BOT_PRIVATE_KEY }}
+             app-id: ${{ vars.STAFL_CI_APP_ID }}
+             private-key: ${{ secrets.STAFL_CI_PRIVATE_KEY }}
          - uses: StaflSystems/CustomGithubActions/AssignReviewers@main
            with:
              token: ${{ steps.app.outputs.token }}
