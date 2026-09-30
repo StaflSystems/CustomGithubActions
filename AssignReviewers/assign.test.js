@@ -14,12 +14,31 @@ function fakeGithub({ prs, load = {}, busy = [] }) {
   const user = (login) => ({ login, type: 'User' });
   const github = {
     paginate: async (fn, params) => (await fn(params)).data,
+    // Serves the load query from the fake PRs, as GitHub would, plus Busy status per user.
     graphql: async (query) => {
       calls.graphql++;
-      const out = {};
-      for (const [, key, login] of query.matchAll(/(l\d+): search\(query: "[^"]*assignee:([^"]+)"/g)) {
-        out[key] = { issueCount: load[login] ?? 0 };
-      }
+      const out = {
+        organization: {
+          repositories: {
+            nodes: [
+              {
+                pullRequests: {
+                  nodes: [
+                    ...[...byNumber.values()].map((p) => ({
+                      isDraft: Boolean(p.draft),
+                      assignees: { nodes: p.assignees.map((login) => ({ login })) },
+                    })),
+                    // PRs in other repos, one per unit of preset load.
+                    ...Object.entries(load).flatMap(([login, n]) =>
+                      Array.from({ length: n }, () => ({ isDraft: false, assignees: { nodes: [{ login }] } })),
+                    ),
+                  ],
+                },
+              },
+            ],
+          },
+        },
+      };
       for (const [, key, login] of query.matchAll(/(u\d+): user\(login: "([^"]+)"\)/g)) {
         out[key] = { status: { indicatesLimitedAvailability: busy.includes(login) } };
       }
@@ -244,4 +263,53 @@ test('still assigns when the load and status query fails', async () => {
   const logs = await run(fake, 95);
   assert.strictEqual(fake.pr(95).assignees.length, 2);
   assert.ok(logs.some((l) => l.startsWith('WARN')));
+});
+
+test('counts assignments made moments ago by other runs', async () => {
+  // Two PRs opened back to back: the second must see the first one's fresh assignment.
+  const fake = fakeGithub({
+    prs: [
+      { number: 100, author: 'devE', head: 'a', base: 'main' },
+      { number: 102, author: 'devE', head: 'b', base: 'main' },
+    ],
+    load: { staffB: 1 },
+  });
+  await run(fake, 100);
+  await run(fake, 102);
+  const firstStaff = fake.pr(100).assignees.find(isStaff);
+  const secondStaff = fake.pr(102).assignees.find(isStaff);
+  assert.notStrictEqual(firstStaff, secondStaff);
+});
+
+test('ignores draft PRs when counting load', async () => {
+  const fake = fakeGithub({
+    prs: [
+      { number: 110, author: 'devE', head: 'x', base: 'main', draft: true, assignees: ['staffA', 'staffA'] },
+      { number: 111, author: 'devE', head: 'a', base: 'main' },
+    ],
+    load: { staffB: 1, staffC: 1 },
+  });
+  await run(fake, 111);
+  assert.ok(fake.pr(111).assignees.includes('staffA'));
+});
+
+test("follows a busy repo's second page of open PRs when counting load", async () => {
+  const fake = fakeGithub({ prs: [{ number: 120, author: 'devE', head: 'a', base: 'main' }] });
+  const assigned = (logins) => logins.map((login) => ({ isDraft: false, assignees: { nodes: [{ login }] } }));
+  fake.github.graphql = async (query, vars) => {
+    if (query.includes('repository(owner')) {
+      assert.strictEqual(vars.after, 'cursor1');
+      // The second page is where staffA's and staffB's load is.
+      return { repository: { pullRequests: { pageInfo: { hasNextPage: false }, nodes: assigned(['staffA', 'staffB']) } } };
+    }
+    return {
+      organization: {
+        repositories: {
+          nodes: [{ name: 'StaflLib', pullRequests: { pageInfo: { hasNextPage: true, endCursor: 'cursor1' }, nodes: [] } }],
+        },
+      },
+    };
+  };
+  await run(fake, 120);
+  assert.ok(fake.pr(120).assignees.includes('staffC'));
 });

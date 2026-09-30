@@ -43,7 +43,7 @@ merge-queue PRs are skipped. Team review auto-assignment settings are left as th
        if: ${{ !github.event.pull_request.draft }}
        runs-on: ubuntu-latest
        steps:
-         - uses: actions/create-github-app-token@v1
+         - uses: actions/create-github-app-token@v2
            id: app
            with:
              app-id: ${{ vars.STAFL_CI_APP_ID }}

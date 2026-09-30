@@ -64,22 +64,53 @@ async function loadAndAvailability(github, org, logins, core) {
   }
 }
 
+// Load is counted from live PR data rather than GitHub search, whose index lags new assignments
+// by minutes: several PRs opened close together would otherwise all see stale counts. The query
+// covers the org's most recently pushed repositories, which is where open PRs live.
 async function queryLoadAndAvailability(github, org, logins) {
-  const fields = logins
-    .map((login, i) => {
-      const q = JSON.stringify(`is:pr is:open draft:false org:${org} assignee:${login}`);
-      return `l${i}: search(query: ${q}, type: ISSUE) { issueCount }
-              u${i}: user(login: ${JSON.stringify(login)}) { status { indicatesLimitedAvailability } }`;
-    })
+  const users = logins
+    .map((login, i) => `u${i}: user(login: ${JSON.stringify(login)}) { status { indicatesLimitedAvailability } }`)
     .join('\n');
-  const data = await github.graphql(`query { ${fields} }`);
+  const prFields = 'pageInfo { hasNextPage endCursor } nodes { isDraft assignees(first: 10) { nodes { login } } }';
+  const data = await github.graphql(
+    `query($org: String!) {
+      organization(login: $org) {
+        repositories(first: 50, orderBy: { field: PUSHED_AT, direction: DESC }) {
+          nodes { name pullRequests(states: OPEN, first: 100) { ${prFields} } }
+        }
+      }
+      ${users}
+    }`,
+    { org },
+  );
+  const load = Object.fromEntries(logins.map((login) => [login, 0]));
+  const count = (pullRequests) => {
+    for (const pullRequest of pullRequests?.nodes ?? []) {
+      if (pullRequest.isDraft) continue;
+      for (const assignee of pullRequest.assignees?.nodes ?? []) {
+        if (assignee.login in load) load[assignee.login]++;
+      }
+    }
+  };
+  for (const repository of data.organization?.repositories?.nodes ?? []) {
+    let page = repository.pullRequests;
+    count(page);
+    // Busy repos (StaflLib) have more than one page of open PRs.
+    while (page?.pageInfo?.hasNextPage) {
+      const next = await github.graphql(
+        `query($org: String!, $name: String!, $after: String!) {
+          repository(owner: $org, name: $name) { pullRequests(states: OPEN, first: 100, after: $after) { ${prFields} } }
+        }`,
+        { org, name: repository.name, after: page.pageInfo.endCursor },
+      );
+      page = next.repository?.pullRequests;
+      count(page);
+    }
+  }
   return Object.fromEntries(
     logins.map((login, i) => [
       login,
-      {
-        load: data[`l${i}`]?.issueCount ?? 0,
-        busy: Boolean(data[`u${i}`]?.status?.indicatesLimitedAvailability),
-      },
+      { load: load[login], busy: Boolean(data[`u${i}`]?.status?.indicatesLimitedAvailability) },
     ]),
   );
 }
