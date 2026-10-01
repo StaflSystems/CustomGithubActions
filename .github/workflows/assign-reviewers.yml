@@ -1,0 +1,22 @@
+name: Assign reviewers
+
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review]
+
+permissions: {}
+
+jobs:
+  assign:
+    # This repo is public: PRs from forks get no secrets, so skip them.
+    if: ${{ !github.event.pull_request.draft && github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/create-github-app-token@v2
+        id: app
+        with:
+          app-id: ${{ vars.STAFL_CI_APP_ID }}
+          private-key: ${{ secrets.STAFL_CI_PRIVATE_KEY }}
+      - uses: StaflSystems/CustomGithubActions/AssignReviewers@main
+        with:
+          token: ${{ steps.app.outputs.token }}
