@@ -1,0 +1,49 @@
+name: Assign Reviewers
+description: >
+  Makes two people responsible for reviewing a ready PR by assigning them, a domain approver and a
+  rotation reviewer, keeps the same two across a Graphite stack, and requests the whole review team.
+
+inputs:
+  token:
+    description: >
+      GitHub App installation token with repository permissions Pull requests (write) and Issues (write),
+      and organization permission Members (read).
+    required: true
+  rotation-team:
+    description: Team the rotation reviewer is picked from.
+    default: embeddedreviewers
+  domain-team:
+    description: Team the domain approver is picked from.
+    default: embeddedreviewersstaff
+  review-team:
+    description: Team requested as reviewers on every ready PR. Defaults to the rotation team.
+    default: ''
+  max-stack-depth:
+    description: How many PRs down the stack to look for assignees to inherit.
+    default: '30'
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/github-script@v8
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        ROTATION_TEAM: ${{ inputs.rotation-team }}
+        DOMAIN_TEAM: ${{ inputs.domain-team }}
+        REVIEW_TEAM: ${{ inputs.review-team }}
+        MAX_STACK_DEPTH: ${{ inputs.max-stack-depth }}
+      with:
+        github-token: ${{ inputs.token }}
+        script: |
+          const assign = require(`${process.env.ACTION_PATH}/assign.js`);
+          await assign({
+            github,
+            context,
+            core,
+            inputs: {
+              rotationTeam: process.env.ROTATION_TEAM,
+              domainTeam: process.env.DOMAIN_TEAM,
+              reviewTeam: process.env.REVIEW_TEAM,
+              maxStackDepth: process.env.MAX_STACK_DEPTH,
+            },
+          });
