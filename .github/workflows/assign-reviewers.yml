@@ -20,3 +20,5 @@ jobs:
       - uses: StaflSystems/CustomGithubActions/AssignReviewers@main
         with:
           token: ${{ steps.app.outputs.token }}
+          pto-calendar-url: ${{ secrets.PTO_CALENDAR_URL }}
+          people: ${{ vars.REVIEW_PEOPLE }}
