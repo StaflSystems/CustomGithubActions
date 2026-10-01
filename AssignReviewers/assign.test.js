@@ -6,16 +6,16 @@ const assign = require('./assign.js');
 const STAFF = ['staffA', 'staffB', 'staffC'];
 const EVERYONE = [...STAFF, 'devD', 'devE', 'devF'];
 
-// A fake GitHub: open PRs keyed by number, team membership, per-user load and Busy status.
-function fakeGithub({ prs, load = {}, busy = [] }) {
+// A fake GitHub: open PRs keyed by number, team membership and per-user load.
+function fakeGithub({ prs, load = {} }) {
   const calls = { assign: [], unassign: [], review: [], graphql: 0 };
   const byNumber = new Map(prs.map((p) => [p.number, { assignees: [], requested: [], teams: [], reviews: [], ...p }]));
   const teams = { embeddedreviewersstaff: STAFF, embeddedreviewers: EVERYONE };
   const user = (login) => ({ login, type: 'User' });
   const github = {
     paginate: async (fn, params) => (await fn(params)).data,
-    // Serves the load query from the fake PRs, as GitHub would, plus Busy status per user.
-    graphql: async (query) => {
+    // Serves the load query from the fake PRs, as GitHub would.
+    graphql: async () => {
       calls.graphql++;
       const out = {
         organization: {
@@ -39,9 +39,6 @@ function fakeGithub({ prs, load = {}, busy = [] }) {
           },
         },
       };
-      for (const [, key, login] of query.matchAll(/(u\d+): user\(login: "([^"]+)"\)/g)) {
-        out[key] = { status: { indicatesLimitedAvailability: busy.includes(login) } };
-      }
       return out;
     },
     rest: {
@@ -91,7 +88,37 @@ function fakeGithub({ prs, load = {}, busy = [] }) {
   return { github, calls, pr: (n) => byNumber.get(n) };
 }
 
-function run(fake, number, overrides = {}, onSleep = () => {}) {
+// A PTO calendar feed with all-day entries: [name, kind, first date, last date].
+function ptoFeed(entries) {
+  const day = (d) => d.replaceAll('-', '');
+  const next = (d) => new Date(Date.parse(`${d}T12:00:00Z`) + 864e5).toISOString().slice(0, 10);
+  const events = entries.map(
+    ([name, kind, first, last = first]) =>
+      `BEGIN:VEVENT\r\nDTSTART;VALUE=DATE:${day(first)}\r\nDTEND;VALUE=DATE:${day(next(last))}\r\nSUMMARY:${name} ${kind}\r\nEND:VEVENT`,
+  );
+  return ['BEGIN:VCALENDAR', ...events, 'END:VCALENDAR'].join('\r\n');
+}
+
+// Thursday Oct 1, 2026, 10:00 Pacific.
+const THURSDAY = new Date('2026-10-01T17:00:00Z');
+const PEOPLE = Object.fromEntries(EVERYONE.map((login) => [login, { name: `Person ${login}` }]));
+
+function withPto(entries, fetches = []) {
+  return {
+    ptoCalendarUrl: 'https://calendar.example/pto.ics',
+    pto: {
+      now: THURSDAY,
+      people: PEOPLE,
+      holidays: { 2026: [] },
+      fetch: async (url) => {
+        fetches.push(url);
+        return { ok: true, status: 200, text: async () => ptoFeed(entries) };
+      },
+    },
+  };
+}
+
+function run(fake, number, overrides = {}, onSleep = () => {}, extraInputs = {}) {
   const pr = fake.pr(number);
   const logs = [];
   const core = { info: (m) => logs.push(m), warning: (m) => logs.push(`WARN ${m}`) };
@@ -108,7 +135,7 @@ function run(fake, number, overrides = {}, onSleep = () => {}) {
       },
     },
   };
-  const inputs = { rotationTeam: 'embeddedreviewers', domainTeam: 'embeddedreviewersstaff' };
+  const inputs = { rotationTeam: 'embeddedreviewers', domainTeam: 'embeddedreviewersstaff', ...extraInputs };
   return assign({ github: fake.github, context, core, inputs, sleep: async () => onSleep() }).then(() => logs);
 }
 
@@ -185,16 +212,54 @@ test('fills the domain approver when the stack only had a rotation assignee', as
   assert.deepStrictEqual(fake.pr(41).assignees.sort(), ['devD', 'staffB']);
 });
 
-test('skips people whose GitHub status is Busy', async () => {
+test('skips people the PTO calendar has out today or next business day', async () => {
   const fake = fakeGithub({
     prs: [{ number: 50, author: 'devE', head: 'a', base: 'main' }],
     load: { staffA: 0, staffB: 3, staffC: 3, devD: 0, devF: 1 },
-    busy: ['staffA', 'devD'],
   });
-  await run(fake, 50);
+  const pto = withPto([
+    ['Person staffA', 'is Out of Office', '2026-10-01'],
+    ['Person devD', 'on Vacation', '2026-10-02', '2026-10-09'],
+  ]);
+  await run(fake, 50, {}, undefined, pto);
   const assignees = fake.pr(50).assignees;
   assert.ok(!assignees.includes('staffA') && !assignees.includes('devD'));
   assert.ok(assignees.includes('devF'));
+});
+
+test('Work From Home and time off after the next business day do not count as out', async () => {
+  const fake = fakeGithub({
+    prs: [{ number: 51, author: 'devE', head: 'a', base: 'main' }],
+    load: { staffA: 0, staffB: 3, staffC: 3, devD: 0, devF: 1 },
+  });
+  const pto = withPto([
+    ['Person staffA', 'on Work From Home', '2026-10-01'],
+    ['Person devD', 'is Out of Office', '2026-10-05'],
+  ]);
+  await run(fake, 51, {}, undefined, pto);
+  assert.deepStrictEqual(fake.pr(51).assignees, ['staffA', 'devD']);
+});
+
+test('still assigns, with a warning, when the PTO calendar cannot be read', async () => {
+  const fake = fakeGithub({ prs: [{ number: 52, author: 'devE', head: 'a', base: 'main' }] });
+  const pto = withPto([]);
+  pto.pto.fetch = async () => ({ ok: false, status: 403, text: async () => '' });
+  const logs = await run(fake, 52, {}, undefined, pto);
+  assert.strictEqual(fake.pr(52).assignees.length, 2);
+  assert.ok(logs.some((l) => l === "WARN Couldn't read the PTO calendar (HTTP 403); not checking who is out."));
+  assert.ok(logs.every((l) => !l.includes('calendar.example')));
+});
+
+test('does not read the PTO calendar when the stack already has its assignees', async () => {
+  const fake = fakeGithub({
+    prs: [
+      { number: 53, author: 'devE', head: 'a', base: 'main', assignees: ['staffC', 'devD'] },
+      { number: 54, author: 'devE', head: 'b', base: 'a' },
+    ],
+  });
+  const fetches = [];
+  await run(fake, 54, {}, undefined, withPto([], fetches));
+  assert.deepStrictEqual(fetches, []);
 });
 
 test('ties rotate by PR number rather than always going to the same person', async () => {
@@ -255,7 +320,7 @@ test('ignores drafts, bots and merge-queue PRs', async () => {
   assert.deepStrictEqual(fake.calls, { assign: [], unassign: [], review: [], graphql: 0 });
 });
 
-test('still assigns when the load and status query fails', async () => {
+test('still assigns when the load query fails', async () => {
   const fake = fakeGithub({ prs: [{ number: 95, author: 'devE', head: 'a', base: 'main' }] });
   fake.github.graphql = async () => {
     throw new Error('Resource not accessible by integration');

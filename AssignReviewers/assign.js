@@ -5,11 +5,13 @@
 // - Mid-stack, it copies the assignees of the nearest PR below it that has any, so the same two
 //   people own the whole stack.
 // - Otherwise it picks the least-loaded available member of each team: fewest open, ready PRs
-//   already assigned to them, skipping anyone whose GitHub status is Busy.
+//   already assigned to them, skipping anyone the PTO calendar has out today or next business day.
 // - The author is never an assignee (a self-assignment is removed). The review team is requested
 //   unless someone from it already is, and an assignee outside the team is requested individually.
 // - A PR that already has a domain approver and a second assignee only gets the review requests
 //   topped up, so reruns are harmless and hand-picked assignees are kept.
+
+const { awaySoon } = require('../ReviewConfig/pto.js');
 
 function isBot(user) {
   return !user || user.type === 'Bot' || user.login.endsWith('[bot]');
@@ -52,25 +54,21 @@ async function teamMembers(github, org, team) {
   return members.map((m) => m.login);
 }
 
-// For each login: how many open, ready PRs in the org already have them as assignee, and whether
-// their GitHub status says they're busy. One GraphQL query for all candidates.
-async function loadAndAvailability(github, org, logins, core) {
+// For each login: how many open, ready PRs in the org already have them as assignee.
+async function reviewerLoad(github, org, logins, core) {
   if (logins.length === 0) return {};
   try {
-    return await queryLoadAndAvailability(github, org, logins);
+    return await queryLoad(github, org, logins);
   } catch (error) {
-    core.warning(`Couldn't read reviewer load or status (${error.message}); picking without them.`);
-    return Object.fromEntries(logins.map((login) => [login, { load: 0, busy: false }]));
+    core.warning(`Couldn't read reviewer load (${error.message}); picking without it.`);
+    return Object.fromEntries(logins.map((login) => [login, 0]));
   }
 }
 
 // Load is counted from live PR data rather than GitHub search, whose index lags new assignments
 // by minutes: several PRs opened close together would otherwise all see stale counts. The query
 // covers the org's most recently pushed repositories, which is where open PRs live.
-async function queryLoadAndAvailability(github, org, logins) {
-  const users = logins
-    .map((login, i) => `u${i}: user(login: ${JSON.stringify(login)}) { status { indicatesLimitedAvailability } }`)
-    .join('\n');
+async function queryLoad(github, org, logins) {
   const prFields = 'pageInfo { hasNextPage endCursor } nodes { isDraft assignees(first: 10) { nodes { login } } }';
   const data = await github.graphql(
     `query($org: String!) {
@@ -79,7 +77,6 @@ async function queryLoadAndAvailability(github, org, logins) {
           nodes { name pullRequests(states: OPEN, first: 100) { ${prFields} } }
         }
       }
-      ${users}
     }`,
     { org },
   );
@@ -107,12 +104,7 @@ async function queryLoadAndAvailability(github, org, logins) {
       count(page);
     }
   }
-  return Object.fromEntries(
-    logins.map((login, i) => [
-      login,
-      { load: load[login], busy: Boolean(data[`u${i}`]?.status?.indicatesLimitedAvailability) },
-    ]),
-  );
+  return load;
 }
 
 module.exports = async ({ github, context, core, inputs, sleep = (ms) => new Promise((r) => setTimeout(r, ms)) }) => {
@@ -125,6 +117,7 @@ module.exports = async ({ github, context, core, inputs, sleep = (ms) => new Pro
   const maxDepth = Number(inputs.maxStackDepth || 30);
   const parentWaitMs = Number(inputs.parentWaitMs ?? 120000);
   const pollMs = Number(inputs.pollMs ?? 10000);
+  const pto = inputs.pto || {};
 
   if (pr.draft) return core.info('Draft PR: nothing to do.');
   if (isBot(pr.user)) return core.info(`Bot-authored PR (${author}): nothing to do.`);
@@ -151,15 +144,17 @@ module.exports = async ({ github, context, core, inputs, sleep = (ms) => new Pro
     }
 
     // 2. Fill the domain approver, then the rotation reviewer, least-loaded first.
+    let away;
     const pick = async (team, members) => {
       const candidates = members.filter((login) => login !== author && !named.has(login)).sort();
       if (candidates.length === 0) return null;
-      const stats = await loadAndAvailability(github, owner, candidates, core);
-      const available = candidates.filter((login) => !stats[login].busy);
+      away ??= await awaySoon({ url: inputs.ptoCalendarUrl, people: inputs.people, core, ...pto });
+      const load = await reviewerLoad(github, owner, candidates, core);
+      const available = candidates.filter((login) => !away.has(login));
       const pool = available.length > 0 ? available : candidates;
       // Least loaded wins; ties rotate by PR number so they don't always go to the same person.
-      const least = Math.min(...pool.map((login) => stats[login].load));
-      const tied = pool.filter((login) => stats[login].load === least);
+      const least = Math.min(...pool.map((login) => load[login]));
+      const tied = pool.filter((login) => load[login] === least);
       const chosen = tied[pr.number % tied.length];
       notes.push(`picked ${chosen} from ${team} (${least} open assigned PRs)`);
       return chosen;
