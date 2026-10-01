@@ -1,0 +1,51 @@
+name: Plan CI Tier
+description: >
+  Picks how much CI a run gets from the PR's draft state and its place in the stack: always (drafts),
+  unit (ready PRs), ready (the highest ready PR in each stack) or release (merge queue, main, dev).
+
+inputs:
+  token:
+    description: Token that can list the repository's pull requests (pull-requests read).
+    default: ${{ github.token }}
+  mode:
+    description: >
+      'on' picks a tier; 'off' runs everything on every run, as a rollback. Usually the repository
+      variable CI_TIER_MODE.
+    default: 'on'
+  max-stack-depth:
+    description: How many PRs up the stack to look for a ready PR.
+    default: '30'
+
+outputs:
+  tier:
+    description: always, unit, ready or release.
+    value: ${{ steps.plan.outputs.tier }}
+  run-unit:
+    description: "'true' for the unit, ready and release tiers."
+    value: ${{ steps.plan.outputs.run-unit }}
+  run-ready:
+    description: "'true' for the ready and release tiers."
+    value: ${{ steps.plan.outputs.run-ready }}
+  run-release:
+    description: "'true' for the release tier."
+    value: ${{ steps.plan.outputs.run-release }}
+
+runs:
+  using: composite
+  steps:
+    - id: plan
+      uses: actions/github-script@v8
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        MODE: ${{ inputs.mode }}
+        MAX_STACK_DEPTH: ${{ inputs.max-stack-depth }}
+      with:
+        github-token: ${{ inputs.token }}
+        script: |
+          const planTier = require(`${process.env.ACTION_PATH}/plan.js`);
+          await planTier({
+            github,
+            context,
+            core,
+            inputs: { mode: process.env.MODE, maxStackDepth: process.env.MAX_STACK_DEPTH },
+          });

@@ -1,0 +1,21 @@
+name: PlanCITier tests
+
+on:
+  pull_request:
+    paths: [PlanCITier/**]
+  push:
+    branches: [main]
+    paths: [PlanCITier/**]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.1.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node --test PlanCITier/
