@@ -5,8 +5,10 @@ who owes a review on every open PR and by when, and report mode, which measures 
 
 ## The scheduled job
 
-`.github/workflows/review-sla.yml` runs it every 30 minutes during business hours (10:00 to 17:00
-Pacific, business days), and on demand. Each run rebuilds every assignee's clock from the open
+A scheduled workflow in a private repo runs it every 30 minutes during business hours (10:00 to
+17:00 Pacific, business days), and on demand. It runs from a private repo, not this one, because
+this repo's run logs are public: they'd show who is out of office, and activity in the private
+repos the job reads. Each run rebuilds every assignee's clock from the open
 PRs' timelines; there's no other state. The repo variable `REVIEW_SLA_MODE` switches it, and is
 the rollback for every step:
 
@@ -62,7 +64,7 @@ It fails safe: an API error is a warning, and that PR, repo, channel or page is 
 
 | Name | Kind | What it is |
 | --- | --- | --- |
-| `REVIEW_SLA_MODE` | Repo variable | `off`, `shadow`, `remind` or `enforce` |
+| `REVIEW_SLA_MODE` | Repo variable, in the repo that runs the job | `off`, `shadow`, `remind` or `enforce` |
 | `STAFL_CI_APP_ID`, `STAFL_CI_PRIVATE_KEY` | Org variable, secret | The staflsystemsci app, installed on every repo checked, with Pull requests and Issues write and Members read |
 | `PTO_CALENDAR_URL` | Org secret | Rippling PTO calendar feed |
 | `REVIEW_PEOPLE` | Org variable | Names and Slack IDs (see `ReviewConfig/`) |
@@ -70,7 +72,69 @@ It fails safe: an API error is a warning, and that PR, repo, channel or page is 
 | `CONFLUENCE_URL`, `CONFLUENCE_USER`, `CONFLUENCE_API_TOKEN` | Org variables, secret | Base URL ending in `/wiki`, and the email and API token of an account that can edit the page. A scoped (service account) token uses `https://api.atlassian.com/ex/confluence/<cloud id>/wiki` |
 | `REVIEW_SLA_PAGE_ID` | Org variable | The dashboard page |
 
-The repos checked are listed in the workflow.
+The org secrets and variables have to be visible to the repo that runs the job. The workflow,
+which also lists the repos checked:
+
+```yaml
+name: Review SLA
+
+on:
+  schedule:
+    # Every 30 minutes, 10:00 to 17:30 Pacific on weekdays, in daylight and standard time. The job
+    # skips runs outside business hours and on holidays.
+    - cron: '*/30 17-23 * * 1-5'
+    - cron: '*/30 0-1 * * 2-6'
+    # 10:00 Pacific, which posts the Slack digest: 17:00 UTC in daylight time, 18:00 in standard.
+    - cron: '0 17 * * 1-5'
+    - cron: '0 18 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      digest:
+        description: Post the Slack digest on this run
+        type: boolean
+        default: false
+
+permissions: {}
+
+# Runs never overlap, so a reminder recorded by one is seen by the next.
+concurrency:
+  group: review-sla
+  cancel-in-progress: false
+
+jobs:
+  sla:
+    # REVIEW_SLA_MODE (off, shadow, remind or enforce) switches it, and is the rollback.
+    if: ${{ vars.REVIEW_SLA_MODE != '' && vars.REVIEW_SLA_MODE != 'off' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/create-github-app-token@v2
+        id: app
+        with:
+          app-id: ${{ vars.STAFL_CI_APP_ID }}
+          private-key: ${{ secrets.STAFL_CI_PRIVATE_KEY }}
+          owner: StaflSystems
+      - uses: StaflSystems/CustomGithubActions/ReviewSLA@main
+        with:
+          token: ${{ steps.app.outputs.token }}
+          mode: ${{ vars.REVIEW_SLA_MODE }}
+          repos: >-
+            StaflLib
+            coit-tower-bms2000
+            goldengate-bms2000-string
+            stafl-bms2000-template
+            anza-bms2000
+            CustomGithubActions
+          pto-calendar-url: ${{ secrets.PTO_CALENDAR_URL }}
+          people: ${{ vars.REVIEW_PEOPLE }}
+          slack-token: ${{ secrets.REVIEW_SLA_SLACK_BOT_TOKEN }}
+          slack-channel: ${{ vars.REVIEW_SLA_SLACK_CHANNEL }}
+          confluence-url: ${{ vars.CONFLUENCE_URL }}
+          confluence-user: ${{ vars.CONFLUENCE_USER }}
+          confluence-token: ${{ secrets.CONFLUENCE_API_TOKEN }}
+          confluence-page-id: ${{ vars.REVIEW_SLA_PAGE_ID }}
+          dashboard-url: https://staflsystems.atlassian.net/wiki/spaces/EM/pages/${{ vars.REVIEW_SLA_PAGE_ID }}
+          digest: ${{ inputs.digest || 'false' }}
+```
 
 ## Report mode
 
