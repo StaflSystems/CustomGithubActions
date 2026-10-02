@@ -2,10 +2,10 @@ name: AssignReviewers tests
 
 on:
   pull_request:
-    paths: [AssignReviewers/**]
+    paths: [AssignReviewers/**, ReviewConfig/**]
   push:
     branches: [main]
-    paths: [AssignReviewers/**]
+    paths: [AssignReviewers/**, ReviewConfig/**]
 
 permissions:
   contents: read
@@ -18,4 +18,4 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: node --test AssignReviewers/
+      - run: node --test AssignReviewers/ ReviewConfig/

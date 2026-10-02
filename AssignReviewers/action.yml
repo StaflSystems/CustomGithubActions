@@ -21,6 +21,16 @@ inputs:
   max-stack-depth:
     description: How many PRs down the stack to look for assignees to inherit.
     default: '30'
+  pto-calendar-url:
+    description: >
+      Rippling PTO calendar feed (iCalendar) URL, from the PTO_CALENDAR_URL org secret. Anyone it
+      has out today or next business day isn't picked. Without it, nobody is skipped.
+    default: ''
+  people:
+    description: >
+      People map from the REVIEW_PEOPLE org variable, as JSON: each GitHub login's name as Rippling
+      shows it and their Slack member ID. Kept out of this public repo. Needed with pto-calendar-url.
+    default: ''
 
 runs:
   using: composite
@@ -32,6 +42,8 @@ runs:
         DOMAIN_TEAM: ${{ inputs.domain-team }}
         REVIEW_TEAM: ${{ inputs.review-team }}
         MAX_STACK_DEPTH: ${{ inputs.max-stack-depth }}
+        PTO_CALENDAR_URL: ${{ inputs.pto-calendar-url }}
+        REVIEW_PEOPLE: ${{ inputs.people }}
       with:
         github-token: ${{ inputs.token }}
         script: |
@@ -45,5 +57,7 @@ runs:
               domainTeam: process.env.DOMAIN_TEAM,
               reviewTeam: process.env.REVIEW_TEAM,
               maxStackDepth: process.env.MAX_STACK_DEPTH,
+              ptoCalendarUrl: process.env.PTO_CALENDAR_URL,
+              people: process.env.REVIEW_PEOPLE,
             },
           });

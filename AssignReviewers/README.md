@@ -15,8 +15,8 @@ What it does each time a PR is opened ready or marked ready:
    at once, it waits up to two minutes for that PR's own run.
 3. **Picks the rest.** It adds the least-loaded domain approver if there's none, then the
    least-loaded rotation reviewer if there are fewer than two. Load is the number of open, ready PRs
-   already assigned to that person in the org; anyone whose GitHub status is Busy is skipped, and ties
-   rotate by PR number.
+   already assigned to that person in the org; anyone the Rippling PTO calendar has out today or on
+   the next business day is skipped (Work From Home doesn't count), and ties rotate by PR number.
 4. **Requests reviewers.** It requests the review team (default `embeddedreviewers`) unless someone
    from it has already been requested or has reviewed, so restacks don't re-request approvers. An
    assignee from outside the team is requested individually.
@@ -30,7 +30,11 @@ merge-queue PRs are skipped. Team review auto-assignment settings are left as th
    so the action uses an installation token from the existing `staflsystemsci` app (org variable
    `STAFL_CI_APP_ID`, org secret `STAFL_CI_PRIVATE_KEY`). It is installed on all repositories and
    has the permissions needed: *Pull requests* and *Issues* write, *Members* read.
-2. **Each repository**: add `.github/workflows/assign-reviewers.yml`:
+2. **PTO calendar**: the Rippling PTO calendar feed URL is the org secret `PTO_CALENDAR_URL`. People
+   are matched to it by name through the org variable `REVIEW_PEOPLE` (see
+   [ReviewConfig](../ReviewConfig/README.md)), kept out of this public repo. Without both, nobody is
+   skipped.
+3. **Each repository**: add `.github/workflows/assign-reviewers.yml`:
 
    ```yaml
    name: Assign reviewers
@@ -51,9 +55,11 @@ merge-queue PRs are skipped. Team review auto-assignment settings are left as th
          - uses: StaflSystems/CustomGithubActions/AssignReviewers@main
            with:
              token: ${{ steps.app.outputs.token }}
+             pto-calendar-url: ${{ secrets.PTO_CALENDAR_URL }}
+             people: ${{ vars.REVIEW_PEOPLE }}
    ```
 
-3. **Authors** no longer need to add reviewers by hand, and shouldn't assign themselves.
+4. **Authors** no longer need to add reviewers by hand, and shouldn't assign themselves.
 
 ## Inputs
 
@@ -64,9 +70,11 @@ merge-queue PRs are skipped. Team review auto-assignment settings are left as th
 | `domain-team` | `embeddedreviewersstaff` | Team the domain approver is picked from |
 | `review-team` | the rotation team | Team requested as reviewers |
 | `max-stack-depth` | `30` | How far down a stack to look for assignees to inherit |
+| `pto-calendar-url` | none | Rippling PTO calendar feed; people out today or next business day aren't picked |
+| `people` | none | `REVIEW_PEOPLE` org variable: GitHub login to Rippling name and Slack ID |
 
 ## Tests
 
 ```bash
-node --test AssignReviewers/
+node --test AssignReviewers/ ReviewConfig/
 ```
