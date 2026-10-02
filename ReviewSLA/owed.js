@@ -12,8 +12,8 @@
 // assignment, their approval of the PR below, and the PR's base changing (the PR below merging).
 // Requesting changes doesn't move them up the stack. Once they've responded, a re-request from the
 // author starts a re-review clock, but only if the PR's head has moved since their last review, so
-// Graphite re-requesting on every `gt submit` doesn't. (Comparing commits rather than push times
-// also means the app needs no Contents permission, and a rebase can't fake a date.)
+// Graphite re-requesting on every `gt submit` doesn't. Commits are compared rather than push
+// times, which need the app's Contents permission and which a rebase rewrites.
 
 const { addBusinessHours, businessHoursBetween } = require('../ReviewConfig/hours.js');
 const { byTime, countsAsResponse, hasSla, isBot, openedAsDraft, targetHours, TARGET_HOURS } = require('./clock.js');

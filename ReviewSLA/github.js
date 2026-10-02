@@ -18,7 +18,7 @@ const TIMELINE_FIELDS = `
     __typename
     ... on ReadyForReviewEvent { createdAt }
     ... on ConvertToDraftEvent { createdAt }
-    ... on PullRequestReview { state submittedAt body comments { totalCount } author { __typename login } commit { oid } }
+    ... on PullRequestReview { databaseId state submittedAt body comments { totalCount } author { __typename login } }
     ... on AssignedEvent { createdAt assignee { ... on User { login } } }
     ... on UnassignedEvent { createdAt assignee { ... on User { login } } }
     ... on ReviewRequestedEvent { createdAt requestedReviewer { ... on User { login } } }
@@ -66,7 +66,8 @@ function toEvent(item) {
         state: item.state,
         body: item.body,
         comments: item.comments.totalCount,
-        commit: item.commit?.oid ?? null,
+        id: item.databaseId,
+        commit: null,
       };
     case 'AssignedEvent':
     case 'UnassignedEvent':
@@ -101,8 +102,32 @@ function toOpenPr(repo, node, items) {
   };
 }
 
+// Whether a re-review clock could be running: a re-request of someone after their own review.
+function mayOweReReview(pr) {
+  if (pr.isDraft) return false;
+  const reviewed = new Map();
+  for (const e of [...pr.timeline].sort((a, b) => a.at - b.at)) {
+    if (e.type === 'review' && e.author) reviewed.set(e.author.login, e.at);
+    if (e.type === 'requested' && reviewed.has(e.login)) return true;
+  }
+  return false;
+}
+
+// The commit each review was left on, which tells whether the author has pushed since. GraphQL
+// only gives it with the app's Contents permission in private repos; REST's commit_id doesn't
+// need it. On failure the commits stay unknown, so no re-review clock starts.
+async function addReviewCommits({ github, core, owner, pr }) {
+  try {
+    const reviews = await github.paginate(github.rest.pulls.listReviews, { owner, repo: pr.repo, pull_number: pr.number, per_page: 100 });
+    const commits = new Map(reviews.map((r) => [r.id, r.commit_id]));
+    for (const e of pr.timeline) if (e.type === 'review') e.commit = commits.get(e.id) ?? null;
+  } catch (error) {
+    core.warning(`${pr.repo}#${pr.number}: couldn't read which commits were reviewed (${error.message}); no re-review clocks on it this run.`);
+  }
+}
+
 // Earlier timeline pages are read for PRs with more than 100 events, up to `maxPages` in all.
-async function fetchOpenPrs({ github, owner, repo, maxPages = 5 }) {
+async function fetchOpenPrs({ github, core, owner, repo, maxPages = 5 }) {
   const prs = [];
   for (let after = null; ; ) {
     const data = await github.graphql(OPEN_PRS, { owner, name: repo, after });
@@ -115,7 +140,9 @@ async function fetchOpenPrs({ github, owner, repo, maxPages = 5 }) {
         items = [...earlier.repository.pullRequest.timelineItems.nodes, ...items];
         info = earlier.repository.pullRequest.timelineItems.pageInfo;
       }
-      prs.push(toOpenPr(repo, node, items));
+      const pr = toOpenPr(repo, node, items);
+      if (mayOweReReview(pr)) await addReviewCommits({ github, core, owner, pr });
+      prs.push(pr);
     }
     if (!page.pageInfo.hasNextPage) break;
     after = page.pageInfo.endCursor;

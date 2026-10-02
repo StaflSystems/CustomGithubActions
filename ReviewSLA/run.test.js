@@ -14,13 +14,14 @@ const PTO_URL = 'https://calendar.example/pto.ics';
 const OPENED = '2026-10-01T17:00:00Z';
 
 const userNode = (login) => ({ __typename: 'User', login });
-const reviewItem = (login, state, iso) => ({ __typename: 'PullRequestReview', state, submittedAt: iso, body: 'ok', comments: { totalCount: 0 }, author: userNode(login) });
+const reviewItem = (login, state, iso, databaseId = 1) => ({ __typename: 'PullRequestReview', databaseId, state, submittedAt: iso, body: 'ok', comments: { totalCount: 0 }, author: userNode(login) });
+const requestedItem = (login, iso) => ({ __typename: 'ReviewRequestedEvent', createdAt: iso, requestedReviewer: userNode(login) });
 
 // A fake org: open PRs (as GraphQL nodes, rebuilt on every query so comments written by one run
 // are read by the next), teams, Slack, Confluence and the PTO calendar.
 function world({ prs, out = [], failRepo, failComments = false }) {
   const calls = { dms: [], posts: [], comments: [], edits: [], assign: [], unassign: [], requested: [], puts: [], graphql: 0 };
-  const state = new Map(prs.map((p) => [p.number, { repo: 'StaflLib', author: 'alovelace', base: 'main', isDraft: false, additions: 300, timeline: [], assignees: [], comments: [], ...p }]));
+  const state = new Map(prs.map((p) => [p.number, { repo: 'StaflLib', author: 'alovelace', base: 'main', isDraft: false, additions: 300, timeline: [], assignees: [], comments: [], headRefOid: 'head', reviewCommits: {}, ...p }]));
   let commentId = 100;
   let page = { title: 'Review Dashboard', version: { number: 3, message: '' } };
   const asNode = (p) => ({
@@ -30,6 +31,7 @@ function world({ prs, out = [], failRepo, failComments = false }) {
     isDraft: p.isDraft,
     additions: p.additions,
     headRefName: p.head,
+    headRefOid: p.headRefOid,
     baseRefName: p.base,
     createdAt: OPENED,
     author: userNode(p.author),
@@ -74,6 +76,10 @@ function world({ prs, out = [], failRepo, failComments = false }) {
       },
       pulls: {
         requestReviewers: async ({ pull_number, reviewers }) => calls.requested.push([pull_number, ...reviewers]),
+        listReviews: async ({ pull_number }) => {
+          calls.listReviews = (calls.listReviews ?? 0) + 1;
+          return { data: Object.entries(state.get(pull_number).reviewCommits).map(([id, commit_id]) => ({ id: Number(id), commit_id })) };
+        },
       },
     },
   };
@@ -168,6 +174,20 @@ test('remind DMs each overdue assignee once, however many runs see it', async ()
   assert.strictEqual(w.calls.dms.length, 2);
   // One comment, edited in place.
   assert.strictEqual(w.calls.comments.length, 1);
+});
+
+test('a re-request after a push since the review starts a re-review clock; without one, nothing', async () => {
+  const timeline = [reviewItem('ghopper', 'CHANGES_REQUESTED', '2026-10-01T18:00:00Z', 7), reviewItem('kjohnson', 'APPROVED', '2026-10-01T18:00:00Z', 8), requestedItem('ghopper', '2026-10-01T20:00:00Z')];
+  const pushed = world({ prs: [onePr({ timeline, headRefOid: 'bbb', reviewCommits: { 7: 'aaa', 8: 'aaa' } })] });
+  await go(pushed, { now: '2026-10-01T21:00:00Z' });
+  assert.match(pushed.calls.comments[0].body, /\| `ghopper` \| Re-review \| Thu Oct 1, 17:00 PT \| {2}\|/);
+  const resubmitted = world({ prs: [onePr({ timeline, headRefOid: 'aaa', reviewCommits: { 7: 'aaa', 8: 'aaa' } })] });
+  await go(resubmitted, { now: '2026-10-01T21:00:00Z' });
+  assert.deepStrictEqual(resubmitted.calls.comments, []);
+  // Only PRs with a re-request after a review need the extra call.
+  const plain = world({ prs: [onePr()] });
+  await go(plain, { now: '2026-10-01T21:00:00Z' });
+  assert.strictEqual(plain.calls.listReviews, undefined);
 });
 
 test('no comment is created for a PR nobody owes a review on', async () => {

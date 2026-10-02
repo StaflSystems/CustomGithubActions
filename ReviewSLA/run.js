@@ -127,7 +127,7 @@ module.exports = async function run({ github, core, inputs, now = new Date(), fe
   let clocks = [];
   for (const repo of repos) {
     try {
-      const open = await fetchOpenPrs({ github, owner, repo });
+      const open = await fetchOpenPrs({ github, core, owner, repo });
       prs.push(...open);
       clocks.push(...owedClocks(open, { now, holidays }));
     } catch (error) {
