@@ -15,8 +15,11 @@ What it does each time a PR is opened ready or marked ready:
    at once, it waits up to two minutes for that PR's own run.
 3. **Picks the rest.** It adds the least-loaded domain approver if there's none, then the
    least-loaded rotation reviewer if there are fewer than two. Load is the number of open, ready PRs
-   already assigned to that person in the org; anyone the Rippling PTO calendar has out today or on
-   the next business day is skipped (Work From Home doesn't count), and ties rotate by PR number.
+   already assigned to that person in the org, not counting PRs they wrote themselves; anyone the
+   Rippling PTO calendar has out today or on the next business day is skipped (Work From Home
+   doesn't count). PRs merge quickly, so most people are at 0 most of the time and ties are common:
+   they go to whoever was assigned to someone else's PR longest ago (anyone not assigned recently
+   first), then rotate by PR number.
 4. **Requests reviewers.** It requests the review team (default `embeddedreviewers`) unless someone
    from it has already been requested or has reviewed, so restacks don't re-request approvers. An
    assignee from outside the team is requested individually.
