@@ -19,7 +19,7 @@ const requestedItem = (login, iso) => ({ __typename: 'ReviewRequestedEvent', cre
 
 // A fake org: open PRs (as GraphQL nodes, rebuilt on every query so comments written by one run
 // are read by the next), teams, Slack, Confluence and the PTO calendar.
-function world({ prs, out = [], failRepo, failComments = false }) {
+function world({ prs, out = [], failRepo, failComments = false, isPrivate = true }) {
   const calls = { dms: [], posts: [], comments: [], edits: [], assign: [], unassign: [], requested: [], puts: [], graphql: 0 };
   const state = new Map(prs.map((p) => [p.number, { repo: 'StaflLib', author: 'alovelace', base: 'main', isDraft: false, additions: 300, timeline: [], assignees: [], comments: [], headRefOid: 'head', reviewCommits: {}, ...p }]));
   let commentId = 100;
@@ -48,7 +48,7 @@ function world({ prs, out = [], failRepo, failComments = false }) {
       }
       if (vars.name === failRepo) throw new Error('HTTP 502');
       const nodes = [...state.values()].filter((p) => p.repo === vars.name).map(asNode);
-      return { repository: { pullRequests: { pageInfo: { hasNextPage: false }, nodes } } };
+      return { repository: { isPrivate, pullRequests: { pageInfo: { hasNextPage: false }, nodes } } };
     },
     rest: {
       teams: {
@@ -209,6 +209,30 @@ test('an assignee out before their review is due is replaced across the stack, a
   const notice = w.calls.comments.find((c) => !c.body.startsWith(MARKER));
   assert.strictEqual(notice.issue_number, 1);
   assert.match(notice.body, /`ghopper` out before their review is due, so @mhamilton takes over from them as assignee on #1, #2/);
+});
+
+test('an assignee who is out keeps the PRs they already approved', async () => {
+  // ghopper approved bottom PR #1 and owes a review on #2.
+  const w = world({
+    prs: [
+      onePr({ timeline: [reviewItem('ghopper', 'APPROVED', '2026-10-01T17:30:00Z')] }),
+      { number: 2, head: 'feature/b', base: 'feature/a', assignees: ['ghopper', 'kjohnson'] },
+    ],
+    out: [['Person ghopper', '2026-10-01']],
+  });
+  await go(w, { now: '2026-10-01T18:00:00Z' });
+  assert.deepStrictEqual(w.calls.unassign, [[2, 'ghopper']]);
+  assert.deepStrictEqual(w.pr(1).assignees.sort(), ['ghopper', 'kjohnson']);
+  const notice = w.calls.comments.find((c) => !c.body.startsWith(MARKER));
+  assert.strictEqual(notice.issue_number, 2);
+});
+
+test('on a public repo, the reassignment notice doesn\'t say the person is out', async () => {
+  const w = world({ prs: [onePr()], out: [['Person ghopper', '2026-10-01']], isPrivate: false });
+  await go(w, { now: '2026-10-01T18:00:00Z' });
+  const notice = w.calls.comments.find((c) => !c.body.startsWith(MARKER));
+  assert.match(notice.body, /^\*\*Review SLA:\*\* `ghopper` isn't available before their review is due, so @mhamilton takes over/);
+  assert.doesNotMatch(notice.body, /PTO|out/);
 });
 
 test('someone out after their review is due is left alone', async () => {

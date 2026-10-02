@@ -27,6 +27,7 @@ const TIMELINE_FIELDS = `
 
 const OPEN_PRS = `query($owner: String!, $name: String!, $after: String) {
   repository(owner: $owner, name: $name) {
+    isPrivate
     pullRequests(states: OPEN, first: 30, after: $after) {
       pageInfo { hasNextPage endCursor }
       nodes {
@@ -81,10 +82,11 @@ function toEvent(item) {
   }
 }
 
-function toOpenPr(repo, node, items) {
+function toOpenPr(repo, node, items, isPrivate = true) {
   const sticky = node.comments.nodes.find((c) => c.body?.startsWith(MARKER));
   return {
     repo,
+    isPrivate,
     number: node.number,
     url: node.url,
     title: node.title,
@@ -140,7 +142,7 @@ async function fetchOpenPrs({ github, core, owner, repo, maxPages = 5 }) {
         items = [...earlier.repository.pullRequest.timelineItems.nodes, ...items];
         info = earlier.repository.pullRequest.timelineItems.pageInfo;
       }
-      const pr = toOpenPr(repo, node, items);
+      const pr = toOpenPr(repo, node, items, data.repository.isPrivate !== false);
       if (mayOweReReview(pr)) await addReviewCommits({ github, core, owner, pr });
       prs.push(pr);
     }

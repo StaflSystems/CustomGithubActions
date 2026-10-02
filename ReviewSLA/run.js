@@ -18,7 +18,7 @@ const { hasSla } = require('./clock.js');
 const { parseState, reminderKey, renderComment } = require('./comment.js');
 const { renderDashboard, updateDashboard } = require('./confluence.js');
 const { fetchOpenPrs } = require('./github.js');
-const { assigneesOf, owedClocks, readySince, stackOf } = require('./owed.js');
+const { approvedAt, assigneesOf, owedClocks, readySince, stackOf } = require('./owed.js');
 const { digestText, postMessage, reminderText } = require('./slack.js');
 
 const MODES = ['off', 'shadow', 'remind', 'enforce'];
@@ -69,8 +69,9 @@ function outBefore(out, login, due, now) {
   return false;
 }
 
-// Replaces `login` with someone from the same team on every PR in the stack they're assigned to.
-// The domain approver is replaced from the domain team, the rotation reviewer from the rotation team.
+// Replaces `login` with someone from the same team on every PR in the stack they're assigned to
+// and haven't approved; their approvals stand. The domain approver is replaced from the domain
+// team, the rotation reviewer from the rotation team.
 async function reassign({ github, core, owner, inputs, teams, clock, stack, out, now }) {
   const { pr, login } = clock;
   const others = assigneesOf(pr).filter((l) => l !== login);
@@ -86,7 +87,8 @@ async function reassign({ github, core, owner, inputs, teams, clock, stack, out,
     core.warning(`${pr.repo}#${pr.number}: ${login} is out before their review is due, but no one else in ${team} is available.`);
     return [];
   }
-  const changed = stack.filter((p) => assigneesOf(p).includes(login));
+  const changed = stack.filter((p) => assigneesOf(p).includes(login) && !approvedAt(p, login));
+  if (changed.length === 0) return [];
   for (const p of changed) {
     await github.rest.issues.removeAssignees({ owner, repo: p.repo, issue_number: p.number, assignees: [login] });
     await github.rest.issues.addAssignees({ owner, repo: p.repo, issue_number: p.number, assignees: [chosen.login] });
@@ -98,12 +100,14 @@ async function reassign({ github, core, owner, inputs, teams, clock, stack, out,
     }
   }
   const numbers = changed.map((p) => `#${p.number}`).join(', ');
+  // A public repo's PRs are visible to anyone, so they don't say why.
+  const reason = pr.isPrivate === false ? `\`${login}\` isn't available` : `the PTO calendar has \`${login}\` out`;
   await github.rest.issues.createComment({
     owner,
     repo: pr.repo,
     issue_number: changed[0].number,
     body:
-      `**Review SLA:** the PTO calendar has \`${login}\` out before their review is due, so @${chosen.login} ` +
+      `**Review SLA:** ${reason} before their review is due, so @${chosen.login} ` +
       `takes over from them as assignee on ${numbers}, picked from ${team} by fewest open assigned PRs.`,
   });
   core.info(`${pr.repo}: reassigned ${login} to ${chosen.login} on ${numbers} (out of office).`);

@@ -47,10 +47,12 @@ Bot PRs and Graphite merge-queue PRs have no clocks.
 - **Reminder DMs** (`remind`): one per clock, when it's due, to the assignee's Slack ID in
   `REVIEW_PEOPLE`.
 - **Out-of-office reassignment** (`remind`): an assignee the PTO calendar has out on any day from
-  today to the day their review is due is replaced on every PR in the stack they're assigned to.
+  today to the day their review is due is replaced on every PR in the stack they're assigned to
+  and haven't approved. Their approvals stand.
   A domain approver is replaced from the domain team and a rotation reviewer from the rotation team,
   by the same least-loaded pick AssignReviewers uses (`ReviewConfig/pick.js`). The other assignee is
-  kept, and a comment on the lowest of those PRs says who took over and why.
+  kept, and a comment on the lowest of those PRs says who took over and why. In a public repo it
+  says only that they aren't available, since anyone can read it.
 - **The digest:** posted to the `REVIEW_SLA_SLACK_CHANNEL` channel by the 10:00 Pacific run
   (or a manual run with **digest** ticked): overdue reviews by person, and how many more are due
   today.
