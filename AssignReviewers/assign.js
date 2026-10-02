@@ -11,6 +11,7 @@
 // - A PR that already has a domain approver and a second assignee only gets the review requests
 //   topped up, so reruns are harmless and hand-picked assignees are kept.
 
+const { pickLeastLoaded, teamMembers } = require('../ReviewConfig/pick.js');
 const { awaySoon } = require('../ReviewConfig/pto.js');
 
 function isBot(user) {
@@ -47,64 +48,6 @@ async function inheritedAssignees(github, owner, repo, pr, author, { maxDepth, p
     baseRef = parent.base.ref;
   }
   return null;
-}
-
-async function teamMembers(github, org, team) {
-  const members = await github.paginate(github.rest.teams.listMembersInOrg, { org, team_slug: team, per_page: 100 });
-  return members.map((m) => m.login);
-}
-
-// For each login: how many open, ready PRs in the org already have them as assignee.
-async function reviewerLoad(github, org, logins, core) {
-  if (logins.length === 0) return {};
-  try {
-    return await queryLoad(github, org, logins);
-  } catch (error) {
-    core.warning(`Couldn't read reviewer load (${error.message}); picking without it.`);
-    return Object.fromEntries(logins.map((login) => [login, 0]));
-  }
-}
-
-// Load is counted from live PR data rather than GitHub search, whose index lags new assignments
-// by minutes: several PRs opened close together would otherwise all see stale counts. The query
-// covers the org's most recently pushed repositories, which is where open PRs live.
-async function queryLoad(github, org, logins) {
-  const prFields = 'pageInfo { hasNextPage endCursor } nodes { isDraft assignees(first: 10) { nodes { login } } }';
-  const data = await github.graphql(
-    `query($org: String!) {
-      organization(login: $org) {
-        repositories(first: 50, orderBy: { field: PUSHED_AT, direction: DESC }) {
-          nodes { name pullRequests(states: OPEN, first: 100) { ${prFields} } }
-        }
-      }
-    }`,
-    { org },
-  );
-  const load = Object.fromEntries(logins.map((login) => [login, 0]));
-  const count = (pullRequests) => {
-    for (const pullRequest of pullRequests?.nodes ?? []) {
-      if (pullRequest.isDraft) continue;
-      for (const assignee of pullRequest.assignees?.nodes ?? []) {
-        if (assignee.login in load) load[assignee.login]++;
-      }
-    }
-  };
-  for (const repository of data.organization?.repositories?.nodes ?? []) {
-    let page = repository.pullRequests;
-    count(page);
-    // Busy repos (StaflLib) have more than one page of open PRs.
-    while (page?.pageInfo?.hasNextPage) {
-      const next = await github.graphql(
-        `query($org: String!, $name: String!, $after: String!) {
-          repository(owner: $org, name: $name) { pullRequests(states: OPEN, first: 100, after: $after) { ${prFields} } }
-        }`,
-        { org, name: repository.name, after: page.pageInfo.endCursor },
-      );
-      page = next.repository?.pullRequests;
-      count(page);
-    }
-  }
-  return load;
 }
 
 module.exports = async ({ github, context, core, inputs, sleep = (ms) => new Promise((r) => setTimeout(r, ms)) }) => {
@@ -146,18 +89,12 @@ module.exports = async ({ github, context, core, inputs, sleep = (ms) => new Pro
     // 2. Fill the domain approver, then the rotation reviewer, least-loaded first.
     let away;
     const pick = async (team, members) => {
-      const candidates = members.filter((login) => login !== author && !named.has(login)).sort();
+      const candidates = members.filter((login) => login !== author && !named.has(login));
       if (candidates.length === 0) return null;
       away ??= await awaySoon({ url: inputs.ptoCalendarUrl, people: inputs.people, core, ...pto });
-      const load = await reviewerLoad(github, owner, candidates, core);
-      const available = candidates.filter((login) => !away.has(login));
-      const pool = available.length > 0 ? available : candidates;
-      // Least loaded wins; ties rotate by PR number so they don't always go to the same person.
-      const least = Math.min(...pool.map((login) => load[login]));
-      const tied = pool.filter((login) => load[login] === least);
-      const chosen = tied[pr.number % tied.length];
-      notes.push(`picked ${chosen} from ${team} (${least} open assigned PRs)`);
-      return chosen;
+      const chosen = await pickLeastLoaded({ github, org: owner, core, candidates, away, seed: pr.number });
+      notes.push(`picked ${chosen.login} from ${team} (${chosen.load} open assigned PRs)`);
+      return chosen.login;
     };
     if (!hasDomainApprover()) {
       const chosen = await pick(domainTeam, domainMembers);

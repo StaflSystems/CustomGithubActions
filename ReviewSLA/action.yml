@@ -1,0 +1,111 @@
+name: Review SLA
+description: >
+  Works out who owes a review on every open PR and by when, keeps a Review SLA comment on each PR,
+  a Confluence dashboard and a 10:00 Slack digest up to date, DMs assignees when a review is due,
+  and reassigns an assignee who is out before it's due.
+
+inputs:
+  token:
+    description: >
+      GitHub App installation token covering every repo in `repos`, with repository permissions Pull
+      requests (write) and Issues (write), and organization permission Members (read).
+    required: true
+  mode:
+    description: "off, shadow, remind or enforce. Usually the REVIEW_SLA_MODE variable."
+    default: 'off'
+  repos:
+    description: Repositories to check, separated by spaces or newlines.
+    required: true
+  owner:
+    description: Organization the repositories are in.
+    default: StaflSystems
+  rotation-team:
+    description: Team a rotation reviewer who is out is replaced from.
+    default: embeddedreviewers
+  domain-team:
+    description: Team a domain approver who is out is replaced from.
+    default: embeddedreviewersstaff
+  pto-calendar-url:
+    description: Rippling PTO calendar feed URL, from the PTO_CALENDAR_URL org secret. Never logged.
+    default: ''
+  people:
+    description: People map from the REVIEW_PEOPLE org variable (names and Slack IDs).
+    default: ''
+  slack-token:
+    description: Slack bot token, with chat:write. Without it, no reminders or digest.
+    default: ''
+  slack-channel:
+    description: Slack channel ID for the digest. The bot has to be invited to it.
+    default: ''
+  confluence-url:
+    description: >
+      Confluence base URL, ending in /wiki: https://<site>.atlassian.net/wiki, or for a scoped
+      (service account) API token, https://api.atlassian.com/ex/confluence/<cloud id>/wiki.
+    default: ''
+  confluence-user:
+    description: Email address of the Atlassian account the API token belongs to.
+    default: ''
+  confluence-token:
+    description: Atlassian API token that can edit the dashboard page.
+    default: ''
+  confluence-page-id:
+    description: ID of the dashboard page.
+    default: ''
+  dashboard-url:
+    description: Link to the dashboard, for PR comments and the digest.
+    default: ''
+  digest:
+    description: "'true' posts the Slack digest on this run, whatever the time."
+    default: 'false'
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/github-script@v8
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        EVENT_NAME: ${{ github.event_name }}
+        EVENT_SCHEDULE: ${{ github.event.schedule }}
+        MODE: ${{ inputs.mode }}
+        REPOS: ${{ inputs.repos }}
+        OWNER: ${{ inputs.owner }}
+        ROTATION_TEAM: ${{ inputs.rotation-team }}
+        DOMAIN_TEAM: ${{ inputs.domain-team }}
+        PTO_CALENDAR_URL: ${{ inputs.pto-calendar-url }}
+        REVIEW_PEOPLE: ${{ inputs.people }}
+        SLACK_TOKEN: ${{ inputs.slack-token }}
+        SLACK_CHANNEL: ${{ inputs.slack-channel }}
+        CONFLUENCE_URL: ${{ inputs.confluence-url }}
+        CONFLUENCE_USER: ${{ inputs.confluence-user }}
+        CONFLUENCE_TOKEN: ${{ inputs.confluence-token }}
+        CONFLUENCE_PAGE_ID: ${{ inputs.confluence-page-id }}
+        DASHBOARD_URL: ${{ inputs.dashboard-url }}
+        DIGEST: ${{ inputs.digest }}
+      with:
+        github-token: ${{ inputs.token }}
+        script: |
+          const run = require(`${process.env.ACTION_PATH}/run.js`);
+          const env = process.env;
+          await run({
+            github,
+            core,
+            inputs: {
+              eventName: env.EVENT_NAME,
+              schedule: env.EVENT_SCHEDULE,
+              mode: env.MODE,
+              repos: env.REPOS,
+              owner: env.OWNER,
+              rotationTeam: env.ROTATION_TEAM,
+              domainTeam: env.DOMAIN_TEAM,
+              ptoCalendarUrl: env.PTO_CALENDAR_URL,
+              people: env.REVIEW_PEOPLE,
+              slackToken: env.SLACK_TOKEN,
+              slackChannel: env.SLACK_CHANNEL,
+              confluenceUrl: env.CONFLUENCE_URL,
+              confluenceUser: env.CONFLUENCE_USER,
+              confluenceToken: env.CONFLUENCE_TOKEN,
+              confluencePageId: env.CONFLUENCE_PAGE_ID,
+              dashboardUrl: env.DASHBOARD_URL,
+              digest: env.DIGEST,
+            },
+          });

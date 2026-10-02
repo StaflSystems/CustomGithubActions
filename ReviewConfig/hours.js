@@ -60,4 +60,4 @@ function addBusinessHours(start, hours, holidays) {
   }
 }
 
-module.exports = { addBusinessHours, businessHoursBetween, isBusinessDay, pacificTime };
+module.exports = { addBusinessHours, businessHoursBetween, isBusinessDay, pacificOffset, pacificTime };

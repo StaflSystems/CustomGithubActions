@@ -125,46 +125,35 @@ function outDates(icsText, people) {
   return out;
 }
 
-// The logins who are out today or on the next business day (Pacific): a review assigned now is
-// due within about one business day, so someone out tomorrow shouldn't get it today.
+// For each login in the people map, the Pacific dates the PTO calendar has them out, or null with a
+// warning when the feed or the map can't be read. With no URL configured, it's null with a note.
 //
 // `people` is the people map, as an object or as the JSON text of the REVIEW_PEOPLE org variable:
 // { "<github login>": { "name": "<name as Rippling shows it>", "aliases": ["<other name>"],
 //                        "slack": "<Slack member ID>" } }, with aliases optional.
-//
-// Returns an empty set, with a warning, when the feed or the map can't be read: picking someone who
-// is out is better than not assigning at all. With no URL configured, it does nothing.
-async function awaySoon({
-  url,
-  core,
-  people,
-  now = new Date(),
-  fetch = globalThis.fetch,
-  holidays = readHolidays(),
-}) {
+async function readOutDates({ url, core, people, now = new Date(), fetch = globalThis.fetch, holidays = readHolidays() }) {
   if (!url) {
     core.info('No PTO calendar configured; not checking who is out.');
-    return new Set();
+    return null;
   }
   try {
     people = typeof people === 'string' ? JSON.parse(people || '{}') : people || {};
   } catch {
     core.warning("The REVIEW_PEOPLE org variable isn't valid JSON; not checking who is out.");
-    return new Set();
+    return null;
   }
   if (Object.keys(people).length === 0) {
     core.warning('The REVIEW_PEOPLE org variable is empty or not passed in; not checking who is out.');
-    return new Set();
+    return null;
   }
   const unnamed = Object.entries(people).filter(([, person]) => namesOf(person).length === 0).map(([login]) => login);
   if (unnamed.length > 0) {
     core.warning(`No Rippling name in REVIEW_PEOPLE for ${unnamed.join(', ')}, so their PTO isn't checked.`);
   }
-  const today = pacificDate(now);
-  if (!holidaysFor(holidays, today.slice(0, 4))) {
-    core.warning(`ReviewConfig/holidays.json has no holidays for ${today.slice(0, 4)}; every weekday counts as a business day.`);
+  const year = pacificDate(now).slice(0, 4);
+  if (!holidaysFor(holidays, year)) {
+    core.warning(`ReviewConfig/holidays.json has no holidays for ${year}; every weekday counts as a business day.`);
   }
-  const window = [today, nextBusinessDay(today, holidays)];
   let text;
   try {
     // The URL carries a token, so neither it nor an error that might quote it is logged.
@@ -173,11 +162,24 @@ async function awaySoon({
     text = await response.text();
   } catch (error) {
     core.warning(`Couldn't read the PTO calendar (${/^HTTP \d+$/.test(error.message) ? error.message : error.name}); not checking who is out.`);
-    return new Set();
+    return null;
   }
-  const dates = outDates(text, people);
+  return outDates(text, people);
+}
+
+// The logins who are out today or on the next business day (Pacific): a review assigned now is
+// due within about one business day, so someone out tomorrow shouldn't get it today.
+//
+// Returns an empty set when the feed or the map can't be read: picking someone who is out is
+// better than not assigning at all.
+async function awaySoon(options) {
+  const { now = new Date(), holidays = readHolidays() } = options;
+  const dates = await readOutDates({ ...options, now, holidays });
+  if (!dates) return new Set();
+  const today = pacificDate(now);
+  const window = [today, nextBusinessDay(today, holidays)];
   const away = new Set(Object.keys(dates).filter((login) => window.some((d) => dates[login].has(d))));
-  core.info(`Out ${window.join(' or ')}: ${[...away].join(', ') || 'nobody'}.`);
+  options.core.info(`Out ${window.join(' or ')}: ${[...away].join(', ') || 'nobody'}.`);
   return away;
 }
 
@@ -192,4 +194,5 @@ module.exports = {
   pacificDate,
   parseIcs,
   readHolidays,
+  readOutDates,
 };

@@ -17,7 +17,7 @@
 const { businessHoursBetween } = require('../ReviewConfig/hours.js');
 
 const SMALL_PR_LINES = 250;
-const TARGET_HOURS = { small: 4, standard: 7 };
+const TARGET_HOURS = { small: 4, standard: 7, reReview: 4 };
 const HOUR_MS = 3600 * 1000;
 
 function isBot(actor) {
@@ -91,4 +91,4 @@ function firstResponse(pr, { until, holidays }) {
   return { rfc: rfcClock(pr, until), sla: slaClock(pr, until, holidays) };
 }
 
-module.exports = { countsAsResponse, firstResponse, hasSla, isBot, targetHours, SMALL_PR_LINES, TARGET_HOURS };
+module.exports = { byTime, countsAsResponse, firstResponse, hasSla, isBot, openedAsDraft, targetHours, SMALL_PR_LINES, TARGET_HOURS };

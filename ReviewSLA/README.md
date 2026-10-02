@@ -1,8 +1,142 @@
 # Review SLA
 
-First-response clocks for the review throughput RFC's Proposal 2. This is step 1 of its rollout:
-the clock code and report mode. Nothing is scheduled yet, so nothing changes for authors or
-reviewers. Reminders, the Confluence dashboard and reassignment come in later steps.
+First-response clocks for the review throughput RFC's Proposal 2: a scheduled job that works out
+who owes a review on every open PR and by when, and report mode, which measures it over past weeks.
+
+## The scheduled job
+
+A scheduled workflow in a private repo runs it every 30 minutes during business hours (10:00 to
+17:00 Pacific, business days), and on demand. It runs from a private repo, not this one, because
+this repo's run logs are public: they'd show who is out of office, and activity in the private
+repos the job reads. Each run rebuilds every assignee's clock from the open
+PRs' timelines; there's no other state. The repo variable `REVIEW_SLA_MODE` switches it, and is
+the rollback for every step:
+
+| Mode | What it does |
+| --- | --- |
+| `off`, or unset | Nothing; the job is skipped |
+| `shadow` | Keeps each PR's Review SLA comment, the Confluence dashboard and the 10:00 Slack digest up to date |
+| `remind` | Also DMs each assignee when their review is due, and reassigns anyone the PTO calendar has out before their review is due |
+| `enforce` | Reassignment at twice the target. Not built yet; runs as `remind` |
+
+### Who owes what
+
+Each assignee other than the author has their own clock on each ready PR:
+
+- **First response:** due 4 business hours after it starts on a PR under 250 added lines, 7 (one
+  business day) otherwise. It starts at the latest of the PR being marked ready, the person being
+  assigned, and, mid-stack, their approval of the PR below or the PR below merging. It stops at
+  their first review that counts: an approval, changes requested, or a comment review with a body
+  or at least one inline comment.
+- **Stacks:** an assignee owes a response only on the lowest ready PR in the stack they're
+  assigned to and haven't approved. Requesting changes doesn't move them up the stack.
+- **Re-review:** due 4 business hours after the author re-requests their review, if the PR's head
+  commit has changed since their last one. A re-request with no new push, as Graphite makes on
+  every `gt submit`, starts nothing.
+- **Drafts** stop every clock on the PR. Marking it ready again starts the first-response clocks
+  over.
+
+Bot PRs and Graphite merge-queue PRs have no clocks.
+
+### What it changes
+
+- **A Review SLA comment** on each ready PR where someone owes a review, edited in place: who owes
+  what, and when it's due. A hidden marker in it records which reminders have been sent, so reruns
+  and late scheduled runs don't send them twice. The comment is written before the DM, so a failed
+  write means a missed reminder, not a repeated one.
+- **Reminder DMs** (`remind`): one per clock, when it's due, to the assignee's Slack ID in
+  `REVIEW_PEOPLE`.
+- **Out-of-office reassignment** (`remind`): an assignee the PTO calendar has out on any day from
+  today to the day their review is due is replaced on every PR in the stack they're assigned to
+  and haven't approved. Their approvals stand.
+  A domain approver is replaced from the domain team and a rotation reviewer from the rotation team,
+  by the same least-loaded pick AssignReviewers uses (`ReviewConfig/pick.js`). The other assignee is
+  kept, and a comment on the lowest of those PRs says who took over and why. In a public repo it
+  says only that they aren't available, since anyone can read it.
+- **The digest:** posted to the `REVIEW_SLA_SLACK_CHANNEL` channel by the 10:00 Pacific run
+  (or a manual run with **digest** ticked): overdue reviews by person, and how many more are due
+  today.
+- **The dashboard:** a Confluence page with a checkmark per person while they're meeting the SLA,
+  and their overdue reviews when they aren't. It saves a new version only when the content
+  changes, as a minor edit, so watchers aren't notified every 30 minutes.
+
+It fails safe: an API error is a warning, and that PR, repo, channel or page is skipped this run.
+
+### Setup
+
+| Name | Kind | What it is |
+| --- | --- | --- |
+| `REVIEW_SLA_MODE` | Repo variable, in the repo that runs the job | `off`, `shadow`, `remind` or `enforce` |
+| `STAFL_CI_APP_ID`, `STAFL_CI_PRIVATE_KEY` | Org variable, secret | The staflsystemsci app, installed on every repo checked, with Pull requests and Issues write and Members read |
+| `PTO_CALENDAR_URL` | Org secret | Rippling PTO calendar feed |
+| `REVIEW_PEOPLE` | Org variable | Names and Slack IDs (see `ReviewConfig/`) |
+| `REVIEW_SLA_SLACK_BOT_TOKEN`, `REVIEW_SLA_SLACK_CHANNEL` | Org secret, variable | Slack app with `chat:write`, invited to the digest channel |
+| `CONFLUENCE_URL`, `CONFLUENCE_USER`, `CONFLUENCE_API_TOKEN` | Org variables, secret | Base URL ending in `/wiki`, and the email and API token of an account that can edit the page. A scoped (service account) token uses `https://api.atlassian.com/ex/confluence/<cloud id>/wiki` |
+| `REVIEW_SLA_PAGE_ID` | Org variable | The dashboard page |
+
+The org secrets and variables have to be visible to the repo that runs the job. The workflow,
+which also lists the repos checked:
+
+```yaml
+name: Review SLA
+
+on:
+  schedule:
+    # Every 30 minutes, 10:00 to 17:30 Pacific on weekdays, in daylight and standard time. The job
+    # skips runs outside business hours and on holidays.
+    - cron: '*/30 17-23 * * 1-5'
+    - cron: '*/30 0-1 * * 2-6'
+    # 10:00 Pacific, which posts the Slack digest: 17:00 UTC in daylight time, 18:00 in standard.
+    - cron: '0 17 * * 1-5'
+    - cron: '0 18 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      digest:
+        description: Post the Slack digest on this run
+        type: boolean
+        default: false
+
+permissions: {}
+
+# Runs never overlap, so a reminder recorded by one is seen by the next.
+concurrency:
+  group: review-sla
+  cancel-in-progress: false
+
+jobs:
+  sla:
+    # REVIEW_SLA_MODE (off, shadow, remind or enforce) switches it, and is the rollback.
+    if: ${{ vars.REVIEW_SLA_MODE != '' && vars.REVIEW_SLA_MODE != 'off' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/create-github-app-token@v2
+        id: app
+        with:
+          app-id: ${{ vars.STAFL_CI_APP_ID }}
+          private-key: ${{ secrets.STAFL_CI_PRIVATE_KEY }}
+          owner: StaflSystems
+      - uses: StaflSystems/CustomGithubActions/ReviewSLA@main
+        with:
+          token: ${{ steps.app.outputs.token }}
+          mode: ${{ vars.REVIEW_SLA_MODE }}
+          repos: >-
+            StaflLib
+            coit-tower-bms2000
+            goldengate-bms2000-string
+            stafl-bms2000-template
+            anza-bms2000
+            CustomGithubActions
+          pto-calendar-url: ${{ secrets.PTO_CALENDAR_URL }}
+          people: ${{ vars.REVIEW_PEOPLE }}
+          slack-token: ${{ secrets.REVIEW_SLA_SLACK_BOT_TOKEN }}
+          slack-channel: ${{ vars.REVIEW_SLA_SLACK_CHANNEL }}
+          confluence-url: ${{ vars.CONFLUENCE_URL }}
+          confluence-user: ${{ vars.CONFLUENCE_USER }}
+          confluence-token: ${{ secrets.CONFLUENCE_API_TOKEN }}
+          confluence-page-id: ${{ vars.REVIEW_SLA_PAGE_ID }}
+          dashboard-url: https://staflsystems.atlassian.net/wiki/spaces/EM/pages/${{ vars.REVIEW_SLA_PAGE_ID }}
+          digest: ${{ inputs.digest || 'false' }}
+```
 
 ## Report mode
 
@@ -55,7 +189,11 @@ PRs by creation date, and 34 PRs opened before Jun 26 were marked ready during t
 
 | File | What it does |
 | --- | --- |
-| `clock.js` | Rebuilds a PR's first-response clock from its ready and draft events and its reviews |
+| `run.js` | The scheduled job: modes, out-of-office reassignment, comments, reminders, digest, dashboard |
+| `owed.js` | Who owes a review now: each assignee's clock, with the stack and re-review rules |
+| `github.js` | Reads each repo's open PRs and their timelines |
+| `comment.js`, `slack.js`, `confluence.js` | The PR comment, Slack messages and the dashboard page |
+| `clock.js` | A PR's first response, measured both ways, for report mode |
 | `report.js` | Report mode: fetches PRs and writes the weekly report |
 
 ## Tests
