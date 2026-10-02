@@ -5,7 +5,8 @@
 // - Mid-stack, it copies the assignees of the nearest PR below it that has any, so the same two
 //   people own the whole stack.
 // - Otherwise it picks the least-loaded available member of each team: fewest open, ready PRs
-//   already assigned to them, skipping anyone the PTO calendar has out today or next business day.
+//   already assigned to them (not counting their own), skipping anyone the PTO calendar has out
+//   today or next business day. Ties go to whoever was assigned longest ago.
 // - The author is never an assignee (a self-assignment is removed). The review team is requested
 //   unless someone from it already is, and an assignee outside the team is requested individually.
 // - A PR that already has a domain approver and a second assignee only gets the review requests
@@ -93,7 +94,8 @@ module.exports = async ({ github, context, core, inputs, sleep = (ms) => new Pro
       if (candidates.length === 0) return null;
       away ??= await awaySoon({ url: inputs.ptoCalendarUrl, people: inputs.people, core, ...pto });
       const chosen = await pickLeastLoaded({ github, org: owner, core, candidates, away, seed: pr.number });
-      notes.push(`picked ${chosen.login} from ${team} (${chosen.load} open assigned PRs)`);
+      const last = chosen.lastAssigned ? `last assigned ${chosen.lastAssigned.slice(0, 10)}` : 'not assigned recently';
+      notes.push(`picked ${chosen.login} from ${team} (${chosen.load} open assigned PRs, ${last})`);
       return chosen.login;
     };
     if (!hasDomainApprover()) {
