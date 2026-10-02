@@ -28,9 +28,9 @@ Each assignee other than the author has their own clock on each ready PR:
   or at least one inline comment.
 - **Stacks:** an assignee owes a response only on the lowest ready PR in the stack they're
   assigned to and haven't approved. Requesting changes doesn't move them up the stack.
-- **Re-review:** due 4 business hours after the author re-requests their review, if the author
-  has pushed since their last one. A re-request with no new push, as Graphite makes on every
-  `gt submit`, starts nothing.
+- **Re-review:** due 4 business hours after the author re-requests their review, if the PR's head
+  commit has changed since their last one. A re-request with no new push, as Graphite makes on
+  every `gt submit`, starts nothing.
 - **Drafts** stop every clock on the PR. Marking it ready again starts the first-response clocks
   over.
 

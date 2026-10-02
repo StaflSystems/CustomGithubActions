@@ -1,18 +1,19 @@
 // Who owes a review right now, per assignee (review RFC, Proposal 2). Rebuilt on every run from
 // the open PRs' timelines; there's no other state.
 //
-// An open PR here is clock.js's PR shape plus { repo, url, title, baseRefName, assignees }, and its
+// An open PR here is clock.js's PR shape plus { repo, url, title, baseRefName, headRefOid,
+// assignees }. Its reviews also carry `commit`, the head commit they were left on, and its
 // timeline can also hold:
 //   { type: 'assigned' | 'unassigned' | 'requested', at, login }
-//   { type: 'pushed', at }   a push or force-push to the PR's branch
 //   { type: 'base', at }     the PR's base branch changed (a restack, or the PR below merged)
 //
 // Each assignee owes a response only on the lowest ready PR in the stack that they're assigned to
 // and haven't approved. Their clock there starts at the latest of: the PR being marked ready, their
 // assignment, their approval of the PR below, and the PR's base changing (the PR below merging).
 // Requesting changes doesn't move them up the stack. Once they've responded, a re-request from the
-// author starts a re-review clock, but only if the author has pushed since their last review, so
-// Graphite re-requesting on every `gt submit` doesn't.
+// author starts a re-review clock, but only if the PR's head has moved since their last review, so
+// Graphite re-requesting on every `gt submit` doesn't. (Comparing commits rather than push times
+// also means the app needs no Contents permission, and a rebase can't fake a date.)
 
 const { addBusinessHours, businessHoursBetween } = require('../ReviewConfig/hours.js');
 const { byTime, countsAsResponse, hasSla, isBot, openedAsDraft, targetHours, TARGET_HOURS } = require('./clock.js');
@@ -86,10 +87,10 @@ function clockFor(pr, login, readyAt, lower) {
     const starts = [readyAt, latest(pr, 'assigned', login), base && base > readyAt ? base : null, ...lowerReady.map((p) => approvedAt(p, login))];
     return { kind: 'first', start: new Date(Math.max(...starts.filter(Boolean))), target: targetHours(pr) };
   }
-  const lastReview = responses.at(-1).at;
+  const lastReview = responses.at(-1);
   const requested = latest(pr, 'requested', login);
-  const pushed = latest(pr, 'pushed');
-  if (requested && requested > lastReview && pushed && pushed > lastReview) {
+  const pushedSince = lastReview.commit && pr.headRefOid && lastReview.commit !== pr.headRefOid;
+  if (requested && requested > lastReview.at && pushedSince) {
     return { kind: 're-review', start: requested, target: TARGET_HOURS.reReview };
   }
   return null;

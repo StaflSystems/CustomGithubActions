@@ -124,9 +124,9 @@ test('when the PR below merges, the clock starts when the base changes', () => {
 test('the author pushing a fix and re-requesting review starts a 4-hour re-review clock', () => {
   const p = pr({
     assignees: ['ghopper'],
+    headRefOid: 'bbb',
     timeline: [
-      ['review', '2026-10-01T18:00:00Z', review('ghopper', 'CHANGES_REQUESTED')],
-      ['pushed', '2026-10-01T20:00:00Z'],
+      ['review', '2026-10-01T18:00:00Z', { ...review('ghopper', 'CHANGES_REQUESTED'), commit: 'aaa' }],
       ['requested', '2026-10-01T20:05:00Z', { login: 'ghopper' }],
     ],
   });
@@ -139,9 +139,9 @@ test('the author pushing a fix and re-requesting review starts a 4-hour re-revie
 test('a re-request with no push since the last review (a Graphite resubmit) starts nothing', () => {
   const p = pr({
     assignees: ['ghopper'],
+    headRefOid: 'aaa',
     timeline: [
-      ['pushed', '2026-10-01T17:30:00Z'],
-      ['review', '2026-10-01T18:00:00Z', review('ghopper', 'COMMENTED')],
+      ['review', '2026-10-01T18:00:00Z', { ...review('ghopper', 'COMMENTED'), commit: 'aaa' }],
       ['requested', '2026-10-01T20:05:00Z', { login: 'ghopper' }],
     ],
   });

@@ -9,8 +9,6 @@ const TIMELINE_TYPES = [
   'ASSIGNED_EVENT',
   'UNASSIGNED_EVENT',
   'REVIEW_REQUESTED_EVENT',
-  'HEAD_REF_FORCE_PUSHED_EVENT',
-  'PULL_REQUEST_COMMIT',
   'BASE_REF_CHANGED_EVENT',
 ].join(', ');
 
@@ -20,12 +18,10 @@ const TIMELINE_FIELDS = `
     __typename
     ... on ReadyForReviewEvent { createdAt }
     ... on ConvertToDraftEvent { createdAt }
-    ... on PullRequestReview { state submittedAt body comments { totalCount } author { __typename login } }
+    ... on PullRequestReview { state submittedAt body comments { totalCount } author { __typename login } commit { oid } }
     ... on AssignedEvent { createdAt assignee { ... on User { login } } }
     ... on UnassignedEvent { createdAt assignee { ... on User { login } } }
     ... on ReviewRequestedEvent { createdAt requestedReviewer { ... on User { login } } }
-    ... on HeadRefForcePushedEvent { createdAt }
-    ... on PullRequestCommit { commit { committedDate } }
     ... on BaseRefChangedEvent { createdAt }
   }`;
 
@@ -34,7 +30,7 @@ const OPEN_PRS = `query($owner: String!, $name: String!, $after: String) {
     pullRequests(states: OPEN, first: 30, after: $after) {
       pageInfo { hasNextPage endCursor }
       nodes {
-        number url title isDraft additions headRefName baseRefName createdAt
+        number url title isDraft additions headRefName headRefOid baseRefName createdAt
         author { __typename login }
         assignees(first: 10) { nodes { login } }
         comments(last: 50) { nodes { databaseId body } }
@@ -70,16 +66,13 @@ function toEvent(item) {
         state: item.state,
         body: item.body,
         comments: item.comments.totalCount,
+        commit: item.commit?.oid ?? null,
       };
     case 'AssignedEvent':
     case 'UnassignedEvent':
       return item.assignee?.login && { type: item.__typename === 'AssignedEvent' ? 'assigned' : 'unassigned', at: at(item.createdAt), login: item.assignee.login };
     case 'ReviewRequestedEvent':
       return item.requestedReviewer?.login && { type: 'requested', at: at(item.createdAt), login: item.requestedReviewer.login };
-    case 'HeadRefForcePushedEvent':
-      return { type: 'pushed', at: at(item.createdAt) };
-    case 'PullRequestCommit':
-      return item.commit?.committedDate && { type: 'pushed', at: at(item.commit.committedDate) };
     case 'BaseRefChangedEvent':
       return { type: 'base', at: at(item.createdAt) };
     default:
@@ -97,6 +90,7 @@ function toOpenPr(repo, node, items) {
     isDraft: node.isDraft,
     additions: node.additions,
     headRefName: node.headRefName,
+    headRefOid: node.headRefOid,
     baseRefName: node.baseRefName,
     createdAt: new Date(node.createdAt),
     closedAt: null,
