@@ -1,7 +1,7 @@
 # Review config
 
-Shared by the review actions (`AssignReviewers`, and the review SLA job to come): who people are,
-when they're out, and which days are company holidays.
+Shared by the review actions (`AssignReviewers` and `ReviewSLA`): who people are, when they're out,
+which days are company holidays, and what counts as business hours.
 
 ## People
 
@@ -26,6 +26,7 @@ Whoever adds or removes someone from the review teams updates it at the same tim
 | --- | --- | --- |
 | `holidays.json` | Company paid holidays, by year | By hand, each year, from the holiday calendar People Operations publishes. Add next year's before Jan 1 |
 | `pto.js` | Reads the Rippling PTO calendar feed | — |
+| `hours.js` | Business hours: how many lie between two times, and when a target falls due | — |
 
 ## Who is out
 
@@ -48,6 +49,10 @@ carry on as if nobody is out.
 
 Business days are Monday to Friday in Pacific time, minus the holidays in `holidays.json`. A year
 with no list gets a warning on every run, and every weekday counts until it's added.
+
+Business hours, which the review SLA is measured in, are 10:00 to 17:00 Pacific on business days.
+Start and end times vary across the team, so the band is narrower than anyone's working day, and a
+business day is 7 hours.
 
 ## Tests
 

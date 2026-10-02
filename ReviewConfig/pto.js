@@ -12,11 +12,10 @@ const path = require('node:path');
 const TIME_ZONE = 'America/Los_Angeles';
 const NOT_OUT = new Set(['work from home']);
 
-function readJson(file) {
+// The checked-in company paid holidays: { "<year>": [{ "date": "YYYY-MM-DD", "name": "..." }] }.
+function readHolidays(file = path.join(__dirname, 'holidays.json')) {
   return JSON.parse(fs.readFileSync(file, 'utf8'));
 }
-
-const defaultHolidaysFile = path.join(__dirname, 'holidays.json');
 
 // 'YYYY-MM-DD' of an instant, in Pacific time.
 function pacificDate(instant) {
@@ -141,7 +140,7 @@ async function awaySoon({
   people,
   now = new Date(),
   fetch = globalThis.fetch,
-  holidays = readJson(defaultHolidaysFile),
+  holidays = readHolidays(),
 }) {
   if (!url) {
     core.info('No PTO calendar configured; not checking who is out.');
@@ -182,4 +181,15 @@ async function awaySoon({
   return away;
 }
 
-module.exports = { awaySoon, outDates, nextBusinessDay, pacificDate, parseIcs };
+module.exports = {
+  TIME_ZONE,
+  addDays,
+  awaySoon,
+  holidaysFor,
+  isWeekend,
+  nextBusinessDay,
+  outDates,
+  pacificDate,
+  parseIcs,
+  readHolidays,
+};
