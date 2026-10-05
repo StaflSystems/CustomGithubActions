@@ -6,17 +6,26 @@ const assign = require('./assign.js');
 const STAFF = ['staffA', 'staffB', 'staffC'];
 const EVERYONE = [...STAFF, 'devD', 'devE', 'devF'];
 
-// A fake GitHub: open PRs keyed by number, team membership and per-user load.
-function fakeGithub({ prs, load = {} }) {
+// A fake GitHub: open PRs keyed by number, team membership, per-user load, and when each person
+// was last assigned (`assigned`, login to ISO time).
+function fakeGithub({ prs, load = {}, assigned = {} }) {
   const calls = { assign: [], unassign: [], review: [], graphql: 0 };
   const byNumber = new Map(prs.map((p) => [p.number, { assignees: [], requested: [], teams: [], reviews: [], ...p }]));
   const teams = { embeddedreviewersstaff: STAFF, embeddedreviewers: EVERYONE };
   const user = (login) => ({ login, type: 'User' });
   const github = {
     paginate: async (fn, params) => (await fn(params)).data,
-    // Serves the load query from the fake PRs, as GitHub would.
-    graphql: async () => {
+    // Serves the load query from the fake PRs, as GitHub would, and the last-assigned query from
+    // `assigned`.
+    graphql: async (query) => {
       calls.graphql++;
+      if (query.includes('ASSIGNED_EVENT')) {
+        const nodes = Object.entries(assigned).map(([login, createdAt]) => ({
+          author: { login: 'someone' },
+          timelineItems: { nodes: [{ createdAt, assignee: { login } }] },
+        }));
+        return { organization: { repositories: { nodes: [{ pullRequests: { nodes } }] } } };
+      }
       const out = {
         organization: {
           repositories: {
@@ -26,11 +35,12 @@ function fakeGithub({ prs, load = {} }) {
                   nodes: [
                     ...[...byNumber.values()].map((p) => ({
                       isDraft: Boolean(p.draft),
+                      author: { login: p.author },
                       assignees: { nodes: p.assignees.map((login) => ({ login })) },
                     })),
                     // PRs in other repos, one per unit of preset load.
                     ...Object.entries(load).flatMap(([login, n]) =>
-                      Array.from({ length: n }, () => ({ isDraft: false, assignees: { nodes: [{ login }] } })),
+                      Array.from({ length: n }, () => ({ isDraft: false, author: { login: 'someone' }, assignees: { nodes: [{ login }] } })),
                     ),
                   ],
                 },
@@ -262,7 +272,27 @@ test('does not read the PTO calendar when the stack already has its assignees', 
   assert.deepStrictEqual(fetches, []);
 });
 
-test('ties rotate by PR number rather than always going to the same person', async () => {
+test("a PR doesn't count toward its own author's load", async () => {
+  // staffA is assigned to three of their own open PRs; staffB and staffC each review one.
+  const own = [1, 2, 3].map((i) => ({ number: 130 + i, author: 'staffA', head: `own${i}`, base: 'main', assignees: ['staffA'] }));
+  const fake = fakeGithub({ prs: [...own, { number: 140, author: 'devE', head: 'a', base: 'main' }], load: { staffB: 1, staffC: 1 } });
+  await run(fake, 140);
+  assert.ok(fake.pr(140).assignees.includes('staffA'));
+});
+
+test('ties go to whoever was assigned longest ago, and anyone not assigned recently first', async () => {
+  const assigned = { staffA: '2026-10-01T20:00:00Z', staffB: '2026-09-29T20:00:00Z', staffC: '2026-09-30T20:00:00Z' };
+  const fake = fakeGithub({ prs: [{ number: 150, author: 'devE', head: 'a', base: 'main' }], assigned });
+  await run(fake, 150);
+  assert.ok(fake.pr(150).assignees.includes('staffB'));
+  // devD and devF haven't been assigned recently, so the rotation reviewer is one of them.
+  const recent = { ...assigned, devD: '2026-09-30T00:00:00Z' };
+  const second = fakeGithub({ prs: [{ number: 151, author: 'devE', head: 'a', base: 'main' }], assigned: recent });
+  await run(second, 151);
+  assert.ok(second.pr(151).assignees.includes('devF'));
+});
+
+test('with no recent assignments, ties rotate by PR number rather than always going to the same person', async () => {
   const picks = new Set();
   for (const number of [60, 61, 62]) {
     const fake = fakeGithub({ prs: [{ number, author: 'devE', head: 'a', base: 'main' }] });
@@ -328,6 +358,18 @@ test('still assigns when the load query fails', async () => {
   const logs = await run(fake, 95);
   assert.strictEqual(fake.pr(95).assignees.length, 2);
   assert.ok(logs.some((l) => l.startsWith('WARN')));
+});
+
+test('if only the last-assigned query fails, it still picks by load, and warns', async () => {
+  const fake = fakeGithub({ prs: [{ number: 160, author: 'devE', head: 'a', base: 'main' }], load: { staffA: 1, staffC: 1 } });
+  const graphql = fake.github.graphql;
+  fake.github.graphql = async (query, vars) => {
+    if (query.includes('ASSIGNED_EVENT')) throw new Error('HTTP 502');
+    return graphql(query, vars);
+  };
+  const logs = await run(fake, 160);
+  assert.ok(fake.pr(160).assignees.includes('staffB'));
+  assert.ok(logs.includes("WARN Couldn't read when reviewers were last assigned (HTTP 502); breaking ties by PR number."));
 });
 
 test('counts assignments made moments ago by other runs', async () => {

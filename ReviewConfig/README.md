@@ -27,7 +27,7 @@ Whoever adds or removes someone from the review teams updates it at the same tim
 | `holidays.json` | Company paid holidays, by year | By hand, each year, from the holiday calendar People Operations publishes. Add next year's before Jan 1 |
 | `pto.js` | Reads the Rippling PTO calendar feed | — |
 | `hours.js` | Business hours: how many lie between two times, and when a target falls due | — |
-| `pick.js` | The least-loaded pick of a reviewer from a team | — |
+| `pick.js` | The least-loaded pick of a reviewer from a team, ties going to whoever was assigned longest ago | — |
 
 ## Who is out
 
