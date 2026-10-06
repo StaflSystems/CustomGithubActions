@@ -28,6 +28,10 @@ function humanLogins(users) {
 //
 // When a whole stack is submitted at once, every PR's run starts together. So if a ready PR below
 // has no assignees yet, wait for its own run to assign them before looking further down.
+//
+// The PR below is found by matching head branches across the repo's open PRs rather than with the
+// list endpoint's `head: owner:branch` filter. In a repo that is a fork of another repo in the same
+// org (goldengate-bms2000-string is a fork of stafl-bms2000-template), that filter finds nothing.
 async function inheritedAssignees(github, owner, repo, pr, author, { maxDepth, parentWaitMs, pollMs, sleep }) {
   let baseRef = pr.base.ref;
   const seen = new Set([pr.number]);
@@ -35,9 +39,13 @@ async function inheritedAssignees(github, owner, repo, pr, author, { maxDepth, p
     const { data } = await github.rest.pulls.get({ owner, repo, pull_number: number });
     return humanLogins(data.assignees).filter((login) => login !== author && login !== data.user.login);
   };
+  // PRs from other repos (forks) can share a branch name with this repo's stack, so they're left out.
+  const thisRepo = `${owner}/${repo}`.toLowerCase();
+  const open = (await github.paginate(github.rest.pulls.list, { owner, repo, state: 'open', per_page: 100 })).filter(
+    (p) => p.head.repo?.full_name.toLowerCase() === thisRepo,
+  );
   for (let depth = 0; depth < maxDepth; depth++) {
-    const parents = await github.rest.pulls.list({ owner, repo, state: 'open', head: `${owner}:${baseRef}` });
-    const parent = parents.data.find((p) => !seen.has(p.number));
+    const parent = open.find((p) => p.head.ref === baseRef && !seen.has(p.number));
     if (!parent) return null;
     seen.add(parent.number);
     let assignees = await assigneesOf(parent.number);
