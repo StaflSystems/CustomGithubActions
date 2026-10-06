@@ -7,8 +7,10 @@ const STAFF = ['staffA', 'staffB', 'staffC'];
 const EVERYONE = [...STAFF, 'devD', 'devE', 'devF'];
 
 // A fake GitHub: open PRs keyed by number, team membership, per-user load, and when each person
-// was last assigned (`assigned`, login to ISO time).
-function fakeGithub({ prs, load = {}, assigned = {} }) {
+// was last assigned (`assigned`, login to ISO time). A PR's `headRepo` is the repo its branch is in
+// (this one by default). `fork` makes the list endpoint's head filter find nothing, as GitHub's
+// does in a repo that is a fork of another repo in the same org.
+function fakeGithub({ prs, load = {}, assigned = {}, fork = false }) {
   const calls = { assign: [], unassign: [], review: [], graphql: 0 };
   const byNumber = new Map(prs.map((p) => [p.number, { assignees: [], requested: [], teams: [], reviews: [], ...p }]));
   const teams = { embeddedreviewersstaff: STAFF, embeddedreviewers: EVERYONE };
@@ -66,8 +68,13 @@ function fakeGithub({ prs, load = {}, assigned = {} }) {
         },
         list: async ({ head }) => ({
           data: [...byNumber.values()]
-            .filter((p) => `StaflSystems:${p.head}` === head)
-            .map((p) => ({ number: p.number, draft: Boolean(p.draft), base: { ref: p.base } })),
+            .filter((p) => !head || (!fork && !p.headRepo && `StaflSystems:${p.head}` === head))
+            .map((p) => ({
+              number: p.number,
+              draft: Boolean(p.draft),
+              base: { ref: p.base },
+              head: { ref: p.head, repo: { full_name: p.headRepo ?? 'StaflSystems/StaflLib' } },
+            })),
         }),
         listReviews: async ({ pull_number }) => ({
           data: byNumber.get(pull_number).reviews.map(([login, state]) => ({ user: user(login), state })),
@@ -192,6 +199,31 @@ test('skips a draft parent with no assignees and inherits from further down', as
   });
   await run(fake, 32);
   assert.deepStrictEqual(fake.pr(32).assignees.sort(), ['devF', 'staffB']);
+});
+
+test('mid-stack in a repo that is a fork: still finds the PR below', async () => {
+  const fake = fakeGithub({
+    fork: true,
+    prs: [
+      { number: 25, author: 'devE', head: 'a', base: 'main', assignees: ['staffC', 'devD'] },
+      { number: 26, author: 'devE', head: 'b', base: 'a' },
+    ],
+  });
+  await run(fake, 26);
+  assert.deepStrictEqual(fake.pr(26).assignees.sort(), ['devD', 'staffC']);
+  assert.strictEqual(fake.calls.graphql, 0);
+});
+
+test('a PR from a fork with the same branch name is not the PR below', async () => {
+  const fake = fakeGithub({
+    prs: [
+      { number: 27, author: 'devF', head: 'a', headRepo: 'someone/StaflLib', base: 'main', assignees: ['staffA', 'devD'] },
+      { number: 28, author: 'devE', head: 'b', base: 'a' },
+    ],
+    load: { staffA: 3, staffB: 0, staffC: 3, devD: 3, devF: 0 },
+  });
+  await run(fake, 28);
+  assert.deepStrictEqual(fake.pr(28).assignees, ['staffB', 'devF']);
 });
 
 test('waits for a ready parent submitted in the same stack to get its assignees', async () => {
