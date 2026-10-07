@@ -169,7 +169,7 @@ test('remind DMs each overdue assignee once, however many runs see it', async ()
   assert.deepStrictEqual(w.calls.dms, []);
   await go(w, { now: '2026-10-02T00:00:00Z' });
   assert.deepStrictEqual(w.calls.dms.map((m) => m.channel).sort(), ['U000', 'U002']);
-  assert.match(w.calls.dms[0].text, /^Review due: <https:\/\/github.com\/StaflSystems\/StaflLib\/pull\/1\|StaflLib#1: PR 1>\. As an assignee, your first response was due at Thu Oct 1, 17:00 PT\.$/);
+  assert.match(w.calls.dms[0].text, /^Review due: <https:\/\/app.graphite.com\/github\/pr\/StaflSystems\/StaflLib\/1\|StaflLib#1: PR 1>\. As an assignee, your first response was due at Thu Oct 1, 17:00 PT\.$/);
   await go(w, { now: '2026-10-02T17:30:00Z' });
   assert.strictEqual(w.calls.dms.length, 2);
   // One comment, edited in place.
@@ -248,9 +248,50 @@ test('the digest posts only on the 10:00 Pacific run', async () => {
   await go(w, { now: '2026-10-02T17:05:00Z', inputs: { schedule: '0 17 * * 1-5' } });
   assert.strictEqual(w.calls.posts.length, 1);
   assert.strictEqual(w.calls.posts[0].channel, 'C123');
-  assert.match(w.calls.posts[0].text, /^\*Review SLA, Fri Oct 2\*\n2 overdue reviews:\n• Person ghopper: /);
+  assert.strictEqual(
+    w.calls.posts[0].text,
+    [
+      '*Review SLA, Fri Oct 2*',
+      '*Overdue (2)*',
+      '• Person ghopper: <https://app.graphite.com/github/pr/StaflSystems/StaflLib/1|StaflLib#1: PR 1>, first response due Thu Oct 1, 17:00',
+      '• Person kjohnson: <https://app.graphite.com/github/pr/StaflSystems/StaflLib/1|StaflLib#1: PR 1>, first response due Thu Oct 1, 17:00',
+      '<https://example.atlassian.net/wiki/spaces/EM/pages/42|Dashboard>',
+    ].join('\n'),
+  );
   assert.ok(run.isDigestRun({ eventName: 'schedule', schedule: '0 18 * * 1-5' }, new Date('2026-12-01T18:00:00Z')));
   assert.ok(run.isDigestRun({ digest: 'true', eventName: 'workflow_dispatch' }, new Date('2026-12-01T20:00:00Z')));
+});
+
+test('the digest also lists reviews due today, and counts the ones due later', async () => {
+  // PR 1 opened 10:00 Thursday is due 17:00 Thursday; PR 2, opened 16:00 Thursday, isn't due until Friday.
+  const second = { number: 2, head: 'feature/b', assignees: ['mhamilton'], timeline: [{ __typename: 'AssignedEvent', createdAt: '2026-10-01T23:00:00Z', assignee: userNode('mhamilton') }] };
+  const w = world({ prs: [onePr(), second] });
+  await go(w, { now: '2026-10-01T23:30:00Z', inputs: { digest: 'true' } });
+  assert.strictEqual(
+    w.calls.posts[0].text,
+    [
+      '*Review SLA, Thu Oct 1*',
+      '*Due today (2)*',
+      '• Person ghopper: <https://app.graphite.com/github/pr/StaflSystems/StaflLib/1|StaflLib#1: PR 1>, first response due 17:00',
+      '• Person kjohnson: <https://app.graphite.com/github/pr/StaflSystems/StaflLib/1|StaflLib#1: PR 1>, first response due 17:00',
+      '1 more review is owed, due after today.',
+      '<https://example.atlassian.net/wiki/spaces/EM/pages/42|Dashboard>',
+    ].join('\n'),
+  );
+});
+
+test('the dashboard lists every review owed, linked to Graphite, with overdue ones marked', async () => {
+  const second = { number: 2, head: 'feature/b', assignees: ['ghopper'], timeline: [{ __typename: 'AssignedEvent', createdAt: '2026-10-01T23:00:00Z', assignee: userNode('ghopper') }] };
+  const w = world({ prs: [onePr(), second] });
+  await go(w, { now: '2026-10-02T00:00:00Z' });
+  const page = w.calls.puts.at(-1).body.storage.value;
+  assert.ok(page.includes(
+    '<tr><td>Person ghopper</td><td>1 overdue</td><td><ul>' +
+      '<li><a href="https://app.graphite.com/github/pr/StaflSystems/StaflLib/1">StaflLib#1</a> PR 1: first response, <strong>overdue since Thu Oct 1, 17:00</strong></li>' +
+      '<li><a href="https://app.graphite.com/github/pr/StaflSystems/StaflLib/2">StaflLib#2</a> PR 2: first response, due Fri Oct 2, 16:00</li>' +
+      '</ul></td></tr>',
+  ), page);
+  assert.ok(page.includes('<tr><td>Person dvaughan</td><td>✅</td><td></td></tr>'));
 });
 
 test('the dashboard saves a new version only when its content changes, as a minor edit', async () => {
