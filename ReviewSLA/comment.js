@@ -27,6 +27,13 @@ function formatTime(instant) {
   return `${parts.weekday} ${parts.month} ${parts.day}, ${parts.hour}:${parts.minute}`;
 }
 
+// A PR's page in Graphite, where the team reviews stacks: github.com/<owner>/<repo>/pull/<n> becomes
+// app.graphite.com/github/pr/<owner>/<repo>/<n>.
+function graphiteUrl(pr) {
+  const match = /^https:\/\/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)/.exec(pr.url ?? '');
+  return match ? `https://app.graphite.com/github/pr/${match[1]}/${match[2]}/${match[3]}` : pr.url;
+}
+
 // One key per clock, so a reminder is sent once per clock: a new clock (a re-review, or a restart
 // after the PR goes back to draft) has a new start and gets its own.
 const reminderKey = (clock) => `${clock.login}:${clock.kind}:${clock.start.toISOString()}`;
@@ -60,4 +67,4 @@ function renderComment(clocks, state, { dashboardUrl } = {}) {
   return lines.join('\n');
 }
 
-module.exports = { formatTime, KIND, MARKER, parseState, reminderKey, renderComment };
+module.exports = { formatTime, graphiteUrl, KIND, MARKER, parseState, reminderKey, renderComment };

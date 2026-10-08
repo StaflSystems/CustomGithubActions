@@ -45,7 +45,7 @@ Bot PRs and Graphite merge-queue PRs have no clocks.
   and late scheduled runs don't send them twice. The comment is written before the DM, so a failed
   write means a missed reminder, not a repeated one.
 - **Reminder DMs** (`remind`): one per clock, when it's due, to the assignee's Slack ID in
-  `REVIEW_PEOPLE`.
+  `REVIEW_PEOPLE`, linking to the PR in Graphite.
 - **Out-of-office reassignment** (`remind`): an assignee the PTO calendar has out on any day from
   today to the day their review is due is replaced on every PR in the stack they're assigned to
   and haven't approved. Their approvals stand.
@@ -54,10 +54,12 @@ Bot PRs and Graphite merge-queue PRs have no clocks.
   kept, and a comment on the lowest of those PRs says who took over and why. In a public repo it
   says only that they aren't available, since anyone can read it.
 - **The digest:** posted to the `REVIEW_SLA_SLACK_CHANNEL` channel by the 10:00 Pacific run
-  (or a manual run with **digest** ticked): overdue reviews by person, and how many more are due
-  today.
+  (or a manual run with **digest** ticked): the overdue reviews and the ones due today, by person,
+  each linked to the PR in Graphite, and how many more are owed but due later.
 - **The dashboard:** a Confluence page with a checkmark per person while they're meeting the SLA,
-  and their overdue reviews when they aren't. It saves a new version only when the content
+  and the number overdue when they aren't. Next to it, every review they owe, linked to the PR in
+  Graphite, with when it's due, overdue ones in bold. PR titles are left out so a busy row stays
+  short; the link leads to the PR. It saves a new version only when the content
   changes, as a minor edit, so watchers aren't notified every 30 minutes.
 
 It fails safe: an API error is a warning, and that PR, repo, channel or page is skipped this run.
