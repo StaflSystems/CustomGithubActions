@@ -20,7 +20,8 @@ function renderDashboard(clocks, { people }) {
     const status = overdue === 0 ? '✅' : `${overdue} overdue`;
     const item = (c) => {
       const when = c.overdue ? `<strong>overdue since ${html(formatTime(c.due))}</strong>` : `due ${html(formatTime(c.due))}`;
-      return `<li><a href="${html(graphiteUrl(c.pr))}">${html(`${c.pr.repo}#${c.pr.number}`)}</a> ${html(c.pr.title)}: ${KIND[c.kind].toLowerCase()}, ${when}</li>`;
+      // No title: the link leads to it, and titles make a busy row too tall to scan.
+      return `<li><a href="${html(graphiteUrl(c.pr))}">${html(`${c.pr.repo}#${c.pr.number}`)}</a>: ${KIND[c.kind].toLowerCase()}, ${when}</li>`;
     };
     const list = mine.length === 0 ? '' : `<ul>${mine.map(item).join('')}</ul>`;
     return `<tr><td>${html(nameOf(login))}</td><td>${status}</td><td>${list}</td></tr>`;

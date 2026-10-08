@@ -58,7 +58,8 @@ Bot PRs and Graphite merge-queue PRs have no clocks.
   each linked to the PR in Graphite, and how many more are owed but due later.
 - **The dashboard:** a Confluence page with a checkmark per person while they're meeting the SLA,
   and the number overdue when they aren't. Next to it, every review they owe, linked to the PR in
-  Graphite, with when it's due, overdue ones in bold. It saves a new version only when the content
+  Graphite, with when it's due, overdue ones in bold. PR titles are left out so a busy row stays
+  short; the link leads to the PR. It saves a new version only when the content
   changes, as a minor edit, so watchers aren't notified every 30 minutes.
 
 It fails safe: an API error is a warning, and that PR, repo, channel or page is skipped this run.

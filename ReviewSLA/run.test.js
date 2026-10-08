@@ -287,8 +287,8 @@ test('the dashboard lists every review owed, linked to Graphite, with overdue on
   const page = w.calls.puts.at(-1).body.storage.value;
   assert.ok(page.includes(
     '<tr><td>Person ghopper</td><td>1 overdue</td><td><ul>' +
-      '<li><a href="https://app.graphite.com/github/pr/StaflSystems/StaflLib/1">StaflLib#1</a> PR 1: first response, <strong>overdue since Thu Oct 1, 17:00</strong></li>' +
-      '<li><a href="https://app.graphite.com/github/pr/StaflSystems/StaflLib/2">StaflLib#2</a> PR 2: first response, due Fri Oct 2, 16:00</li>' +
+      '<li><a href="https://app.graphite.com/github/pr/StaflSystems/StaflLib/1">StaflLib#1</a>: first response, <strong>overdue since Thu Oct 1, 17:00</strong></li>' +
+      '<li><a href="https://app.graphite.com/github/pr/StaflSystems/StaflLib/2">StaflLib#2</a>: first response, due Fri Oct 2, 16:00</li>' +
       '</ul></td></tr>',
   ), page);
   assert.ok(page.includes('<tr><td>Person dvaughan</td><td>✅</td><td></td></tr>'));
