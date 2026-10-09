@@ -1,0 +1,69 @@
+name: SetupCcache smoke test
+
+# Builds a few files twice against each shared ccache store, then once with the store unreachable.
+# See SetupCcache/smoke.sh for what each build checks.
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: [SetupCcache/**, .github/workflows/setup-ccache-smoke.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: ${{ matrix.store }} store, ${{ matrix.image }}${{ matrix.fork == 'true' && ', IAR ccache fork' || '' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: ubuntu-latest, image: 'ubuntu:24.04', store: aws, fork: 'false' }  # ccache 4.9
+          - { runner: ubuntu-latest, image: 'ubuntu:22.04', store: aws, fork: 'false' }  # ccache 4.5, as in the CI image
+          - { runner: ubuntu-iar, image: 'ubuntu:24.04', store: lan, fork: 'true' }      # ccache 4.12 fork
+    runs-on: ${{ matrix.runner }}
+    container: ${{ matrix.image }}
+    steps:
+      - name: Install gcc and ccache
+        run: |
+          apt-get update -qq
+          DEBIAN_FRONTEND=noninteractive apt-get install -y -qq gcc ccache curl ca-certificates git > /dev/null
+
+      - uses: actions/checkout@v4.1.2
+
+      - name: Write sources unique to this run
+        run: |
+          mkdir -p smoke
+          echo "#define RUN_ID \"${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.image }}-${{ matrix.store }}\"" > smoke/run_id.h
+          for i in $(seq 20); do
+            printf '#include "run_id.h"\nconst char *f%s(void) { return RUN_ID; }\n' "$i" > "smoke/f$i.c"
+          done
+
+      - id: ccache
+        uses: ./SetupCcache
+        with:
+          mode: remote
+          fork: ${{ matrix.fork }}
+          aws-url: ${{ vars.AWS_CCACHE_URL }}
+          aws-password: ${{ secrets.AWS_CCACHE_HTTP_PASSWORD }}
+          lan-url: ${{ vars.LAN_CCACHE_URL }}
+          lan-password: ${{ secrets.LAN_CCACHE_HTTP_PASSWORD }}
+
+      - name: Check the store was picked
+        if: steps.ccache.outputs.store != matrix.store
+        run: |
+          echo "::error::Expected the ${{ matrix.store }} store, got '${{ steps.ccache.outputs.store }}'."
+          cat "$RUNNER_TEMP/ghostunnel.log" 2> /dev/null || true
+          exit 1
+
+      # Separate steps, so they also check the tunnel outlives the step that started it.
+      - name: First build writes to the store
+        run: bash SetupCcache/smoke.sh miss
+      - name: Second build hits in the store
+        run: bash SetupCcache/smoke.sh hit
+      - name: Build with the store unreachable
+        run: bash SetupCcache/smoke.sh down
+
+      - name: Tunnel log
+        if: always() && matrix.store == 'aws'
+        run: cat "$RUNNER_TEMP/ghostunnel.log" || true
