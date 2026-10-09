@@ -72,13 +72,15 @@ def test_remote_storage_counts():
 
 
 def test_ccache_4_5_secondary_storage_counts_as_remote():
+    cleanups = "  Cleanups:          12\n"
+    assert cleanups in CCACHE_4_5
     log = CCACHE_4_5.replace(
-        "2026-09-18T17:41:07.7468256Z \n",
+        cleanups,
+        cleanups +
         "2026-09-18T17:41:07.7468200Z Secondary storage:\n"
         "2026-09-18T17:41:07.7468200Z   Hits:             870 / 1074 (81.01 %)\n"
         "2026-09-18T17:41:07.7468200Z   Misses:           204\n"
-        "2026-09-18T17:41:07.7468200Z   Errors:             4\n"
-        "2026-09-18T17:41:07.7468256Z \n")
+        "2026-09-18T17:41:07.7468200Z   Errors:             4\n")
     assert parse_ccache_stats(log) == {
         "hits": 880, "cacheable": 1074, "remote_hits": 870, "remote_misses": 204, "remote_errors": 4}
 
