@@ -116,7 +116,8 @@ def parse_ccache_stats(log):
 
     Handles ccache 4.5's "Summary:" layout and the "Cacheable calls:" layout of 4.6 and later.
     The first Hits line of the block counts each cacheable call once; the per-storage Hits lines
-    below it count lookups. Remote errors and timeouts appear only when nonzero.
+    below it count lookups. Remote errors and timeouts appear only when nonzero. ccache 4.5 calls
+    remote storage "Secondary storage".
     """
     lines = [TIMESTAMP.sub("", ANSI.sub("", l)) for l in log.splitlines()]
     starts = [i for i, l in enumerate(lines) if l.startswith(("Summary:", "Cacheable calls:"))]
@@ -130,7 +131,7 @@ def parse_ccache_stats(log):
             section = line.strip().rstrip(":")
         elif (m := re.match(r"\s+Hits:" + RATIO, line)) and "hits" not in stats:
             stats["hits"], stats["cacheable"] = int(m.group(1)), int(m.group(2))
-        elif section == "Remote storage" and (m := re.match(r"\s+(Hits|Misses|Errors|Timeouts):\s+(\d+)", line)):
+        elif section in ("Remote storage", "Secondary storage") and (m := re.match(r"\s+(Hits|Misses|Errors|Timeouts):\s+(\d+)", line)):
             stats[f"remote_{m.group(1).lower()}"] = int(m.group(2))
     return stats if "hits" in stats else None
 

@@ -71,6 +71,18 @@ def test_remote_storage_counts():
         "remote_hits": 590, "remote_misses": 3, "remote_errors": 2, "remote_timeouts": 1}
 
 
+def test_ccache_4_5_secondary_storage_counts_as_remote():
+    log = CCACHE_4_5.replace(
+        "2026-09-18T17:41:07.7468256Z \n",
+        "2026-09-18T17:41:07.7468200Z Secondary storage:\n"
+        "2026-09-18T17:41:07.7468200Z   Hits:             870 / 1074 (81.01 %)\n"
+        "2026-09-18T17:41:07.7468200Z   Misses:           204\n"
+        "2026-09-18T17:41:07.7468200Z   Errors:             4\n"
+        "2026-09-18T17:41:07.7468256Z \n")
+    assert parse_ccache_stats(log) == {
+        "hits": 880, "cacheable": 1074, "remote_hits": 870, "remote_misses": 204, "remote_errors": 4}
+
+
 def test_last_stats_block_wins():
     # Stats are cumulative within a job, so the last block is the job's total.
     assert parse_ccache_stats(CCACHE_4_12 + CCACHE_REMOTE)["hits"] == 590
