@@ -34,7 +34,8 @@ Each assignee other than the author has their own clock on each ready PR:
   commit has changed since their last one. A re-request with no new push, as Graphite makes on
   every `gt submit`, starts nothing.
 - **Drafts** stop every clock on the PR. Marking it ready again starts the first-response clocks
-  over.
+  over, except for anyone whose approval still stands: they owe nothing until a re-request after a
+  push.
 
 Bot PRs and Graphite merge-queue PRs have no clocks.
 
@@ -47,7 +48,7 @@ Bot PRs and Graphite merge-queue PRs have no clocks.
 - **Reminder DMs** (`remind`): one per clock, when it's due, to the assignee's Slack ID in
   `REVIEW_PEOPLE`, linking to the PR in Graphite.
 - **Out-of-office reassignment** (`remind`): an assignee the PTO calendar has out on any day from
-  today to the day their review is due is replaced on every PR in the stack they're assigned to
+  today to the day their review is due (or today, for an overdue review) is replaced on every PR in the stack they're assigned to
   and haven't approved. Their approvals stand.
   A domain approver is replaced from the domain team and a rotation reviewer from the rotation team,
   by the same least-loaded pick AssignReviewers uses (`ReviewConfig/pick.js`). The other assignee is

@@ -61,11 +61,14 @@ function isDigestRun(inputs, now) {
   return inputs.eventName === 'schedule' && inputs.schedule === DIGEST_CRONS[String(pacificOffset(pacificDate(now)))];
 }
 
-// Whether the calendar has `login` out on any day from today to the day the review is due.
+// Whether the calendar has `login` out on any day from today to the day the review is due, or
+// today if it's already overdue.
 function outBefore(out, login, due, now) {
   const dates = out[login];
   if (!dates) return false;
-  for (let date = pacificDate(now); date <= pacificDate(due); date = addDays(date, 1)) if (dates.has(date)) return true;
+  const today = pacificDate(now);
+  const last = pacificDate(due) > today ? pacificDate(due) : today;
+  for (let date = today; date <= last; date = addDays(date, 1)) if (dates.has(date)) return true;
   return false;
 }
 

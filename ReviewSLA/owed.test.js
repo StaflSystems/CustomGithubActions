@@ -78,6 +78,49 @@ test('going back to draft and ready again starts the clock over, with no miss', 
   assert.deepStrictEqual([clock.start, clock.overdue], ['2026-10-05T17:00:00.000Z', false]);
 });
 
+test('an approval that still stands survives going back to draft and ready again', () => {
+  // ghopper approved while the PR was a draft, and it's been pushed to since without a re-request.
+  const p = pr({
+    headRefOid: 'bbb',
+    timeline: [
+      ['draft', '2026-10-01T18:00:00Z'],
+      ['review', '2026-10-02T17:00:00Z', { ...review('ghopper'), commit: 'aaa' }],
+      ['ready', '2026-10-05T17:00:00Z'],
+    ],
+  });
+  assert.deepStrictEqual(clocks([p], '2026-10-05T18:00:00Z').map((c) => c.login), ['kjohnson']);
+});
+
+test('after a draft round-trip, a standing approval still gets a re-review clock from a re-request after a push', () => {
+  const p = pr({
+    assignees: ['ghopper'],
+    headRefOid: 'bbb',
+    timeline: [
+      ['draft', '2026-10-01T18:00:00Z'],
+      ['review', '2026-10-02T17:00:00Z', { ...review('ghopper'), commit: 'aaa' }],
+      ['ready', '2026-10-05T17:00:00Z'],
+      ['requested', '2026-10-05T17:30:00Z', { login: 'ghopper' }],
+    ],
+  });
+  assert.deepStrictEqual(clocks([p], '2026-10-05T18:00:00Z').map((c) => [c.kind, c.start]), [['re-review', '2026-10-05T17:30:00.000Z']]);
+});
+
+test('a comment, or an approval since replaced by a change request, before going back to draft doesn\'t carry over', () => {
+  const p = pr({
+    timeline: [
+      ['review', '2026-10-01T17:30:00Z', review('ghopper')],
+      ['review', '2026-10-01T17:45:00Z', review('ghopper', 'CHANGES_REQUESTED')],
+      ['review', '2026-10-01T17:50:00Z', review('kjohnson', 'COMMENTED')],
+      ['draft', '2026-10-01T18:00:00Z'],
+      ['ready', '2026-10-05T17:00:00Z'],
+    ],
+  });
+  assert.deepStrictEqual(clocks([p], '2026-10-05T18:00:00Z').map((c) => [c.login, c.start]), [
+    ['ghopper', '2026-10-05T17:00:00.000Z'],
+    ['kjohnson', '2026-10-05T17:00:00.000Z'],
+  ]);
+});
+
 test('someone assigned later starts their clock when they\'re assigned', () => {
   const p = pr({ assignees: ['ghopper'], timeline: [['assigned', '2026-10-02T17:00:00Z', { login: 'ghopper' }]] });
   assert.strictEqual(clocks([p], '2026-10-02T18:00:00Z')[0].start, '2026-10-02T17:00:00.000Z');
