@@ -227,6 +227,20 @@ test('an assignee who is out keeps the PRs they already approved', async () => {
   assert.strictEqual(notice.issue_number, 2);
 });
 
+test('the new assignee isn\'t asked again on a PR they\'ve already approved', async () => {
+  // mhamilton approved #1 without being assigned; #2 above it still needs their review.
+  const w = world({
+    prs: [
+      onePr({ timeline: [reviewItem('mhamilton', 'APPROVED', '2026-10-01T17:30:00Z')] }),
+      { number: 2, head: 'feature/b', base: 'feature/a', assignees: ['ghopper', 'kjohnson'] },
+    ],
+    out: [['Person ghopper', '2026-10-01']],
+  });
+  await go(w, { now: '2026-10-01T18:00:00Z' });
+  assert.deepStrictEqual(w.calls.assign, [[1, 'mhamilton'], [2, 'mhamilton']]);
+  assert.deepStrictEqual(w.calls.requested, [[2, 'mhamilton']]);
+});
+
 test('on a public repo, the reassignment notice doesn\'t say the person is out', async () => {
   const w = world({ prs: [onePr()], out: [['Person ghopper', '2026-10-01']], isPrivate: false });
   await go(w, { now: '2026-10-01T18:00:00Z' });

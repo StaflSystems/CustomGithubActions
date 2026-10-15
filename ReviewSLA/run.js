@@ -96,6 +96,8 @@ async function reassign({ github, core, owner, inputs, teams, clock, stack, out,
     await github.rest.issues.removeAssignees({ owner, repo: p.repo, issue_number: p.number, assignees: [login] });
     await github.rest.issues.addAssignees({ owner, repo: p.repo, issue_number: p.number, assignees: [chosen.login] });
     p.assignees = [...p.assignees.filter((l) => l !== login), chosen.login];
+    // Someone whose approval already stands owes nothing here, so a request would only ask them again.
+    if (approvedAt(p, chosen.login)) continue;
     try {
       await github.rest.pulls.requestReviewers({ owner, repo: p.repo, pull_number: p.number, reviewers: [chosen.login] });
     } catch (error) {
