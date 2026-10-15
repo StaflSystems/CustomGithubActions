@@ -235,6 +235,20 @@ test('on a public repo, the reassignment notice doesn\'t say the person is out',
   assert.doesNotMatch(notice.body, /PTO|out/);
 });
 
+test('an overdue review is reassigned when its assignee is out today', async () => {
+  // Due 17:00 Thursday Oct 1; on Monday Oct 5 ghopper is out and still hasn't responded.
+  const w = world({ prs: [onePr()], out: [['Person ghopper', '2026-10-05']] });
+  await go(w, { now: '2026-10-05T18:00:00Z' });
+  assert.deepStrictEqual(w.calls.unassign, [[1, 'ghopper']]);
+  assert.deepStrictEqual(w.calls.assign, [[1, 'mhamilton']]);
+});
+
+test('an overdue review stays put when its assignee was only out before today', async () => {
+  const w = world({ prs: [onePr()], out: [['Person ghopper', '2026-10-02']] });
+  await go(w, { now: '2026-10-05T18:00:00Z' });
+  assert.deepStrictEqual(w.calls.assign, []);
+});
+
 test('someone out after their review is due is left alone', async () => {
   const w = world({ prs: [onePr()], out: [['Person ghopper', '2026-10-02']] });
   await go(w, { now: '2026-10-01T18:00:00Z' });

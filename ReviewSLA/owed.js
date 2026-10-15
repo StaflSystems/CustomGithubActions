@@ -14,6 +14,9 @@
 // author starts a re-review clock, but only if the PR's head has moved since their last review, so
 // Graphite re-requesting on every `gt submit` doesn't. Commits are compared rather than push
 // times, which need the app's Contents permission and which a rebase rewrites.
+//
+// Going back to draft and ready again starts the first-response clocks over, except for an
+// approval that still stands: that's a response whenever it was given, here and in reassign().
 
 const { addBusinessHours, businessHoursBetween } = require('../ReviewConfig/hours.js');
 const { byTime, countsAsResponse, hasSla, isBot, openedAsDraft, targetHours, TARGET_HOURS } = require('./clock.js');
@@ -33,11 +36,17 @@ function reviewsBy(pr, login) {
   return pr.timeline.filter((e) => e.type === 'review' && e.author?.login === login).sort(byTime);
 }
 
-// The time of `login`'s approval, if their latest approval or changes-requested review is an approval.
-function approvedAt(pr, login) {
+// `login`'s latest approval or changes-requested review, if it's an approval. A dismissed
+// approval no longer counts.
+function standingApproval(pr, login) {
   const decisive = reviewsBy(pr, login).filter((r) => r.state === 'APPROVED' || r.state === 'CHANGES_REQUESTED');
   const last = decisive.at(-1);
-  return last?.state === 'APPROVED' ? last.at : null;
+  return last?.state === 'APPROVED' ? last : null;
+}
+
+// The time of `login`'s standing approval, or null.
+function approvedAt(pr, login) {
+  return standingApproval(pr, login)?.at ?? null;
 }
 
 function latest(pr, type, login) {
@@ -81,7 +90,9 @@ function clockFor(pr, login, readyAt, lower) {
   const lowerReady = lower.filter((p) => readySince(p) && assigneesOf(p).includes(login));
   if (lowerReady.some((p) => !approvedAt(p, login))) return null;
 
-  const responses = reviewsBy(pr, login).filter((r) => countsAsResponse(r) && r.at >= readyAt);
+  // Reviews from before the PR was last marked ready don't count, except a standing approval.
+  const approval = standingApproval(pr, login);
+  const responses = reviewsBy(pr, login).filter((r) => countsAsResponse(r) && (r.at >= readyAt || r === approval));
   if (responses.length === 0) {
     const base = latest(pr, 'base');
     const starts = [readyAt, latest(pr, 'assigned', login), base && base > readyAt ? base : null, ...lowerReady.map((p) => approvedAt(p, login))];
