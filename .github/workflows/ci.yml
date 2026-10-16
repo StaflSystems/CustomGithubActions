@@ -1,0 +1,105 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  # Each test suite runs only when its action changed, or when this workflow did.
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      review: ${{ steps.filter.outputs.review }}
+      ci_metrics: ${{ steps.filter.outputs.ci_metrics }}
+      plan_ci_tier: ${{ steps.filter.outputs.plan_ci_tier }}
+    steps:
+      - uses: actions/checkout@v4.1.2
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            review:
+              - .github/workflows/ci.yml
+              - AssignReviewers/**
+              - ReviewConfig/**
+              - ReviewSLA/**
+            ci_metrics:
+              - .github/workflows/ci.yml
+              - CIMetrics/**
+            plan_ci_tier:
+              - .github/workflows/ci.yml
+              - PlanCITier/**
+
+  review-tests:
+    name: Review action tests
+    needs: changes
+    if: needs.changes.outputs.review == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.1.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node --test AssignReviewers/ ReviewConfig/ ReviewSLA/
+
+  ci-metrics-tests:
+    name: CIMetrics tests
+    needs: changes
+    if: needs.changes.outputs.ci_metrics == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.1.2
+      - uses: astral-sh/setup-uv@v6
+      - run: uv run --no-project --with pytest pytest CIMetrics
+
+  plan-ci-tier-tests:
+    name: PlanCITier tests
+    needs: changes
+    if: needs.changes.outputs.plan_ci_tier == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.1.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node --test PlanCITier/
+
+  # The required check. It runs on every PR and passes only if each suite that should run passed
+  # and the rest were skipped.
+  ci-status:
+    name: CI Status
+    needs: [changes, review-tests, ci-metrics-tests, plan-ci-tier-tests]
+    if: always() && !cancelled()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check CI Status
+        env:
+          CHANGES: ${{ needs.changes.result }}
+          REVIEW: ${{ needs.review-tests.result }}
+          CI_METRICS: ${{ needs.ci-metrics-tests.result }}
+          PLAN_CI_TIER: ${{ needs.plan-ci-tier-tests.result }}
+          RUN_REVIEW: ${{ needs.changes.outputs.review }}
+          RUN_CI_METRICS: ${{ needs.changes.outputs.ci_metrics }}
+          RUN_PLAN_CI_TIER: ${{ needs.changes.outputs.plan_ci_tier }}
+        run: |
+          failed=0
+          expect() { # job, its result, whether it should run
+            if [[ "$3" == "true" && "$2" == "success" ]] || [[ "$3" != "true" && "$2" == "skipped" ]]; then
+              echo "✓ $1: $2"
+            else
+              echo "✗ $1: $2 (expected $([[ "$3" == "true" ]] && echo success || echo skipped))"
+              failed=1
+            fi
+          }
+          expect "changes" "$CHANGES" true
+          expect "Review action tests" "$REVIEW" "$RUN_REVIEW"
+          expect "CIMetrics tests" "$CI_METRICS" "$RUN_CI_METRICS"
+          expect "PlanCITier tests" "$PLAN_CI_TIER" "$RUN_PLAN_CI_TIER"
+          exit $failed
