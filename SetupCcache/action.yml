@@ -1,0 +1,86 @@
+name: Setup ccache
+description: >
+  Sets up ccache for a C/C++ build job, caching either in the GitHub Actions cache or in the shared
+  ccache stores: the office LAN store for self-hosted runners, the AWS store for GitHub-hosted ones.
+
+inputs:
+  mode:
+    description: >
+      'actions' caches in the GitHub Actions cache, as before. 'remote' uses the shared store and
+      skips the Actions cache. Usually the repository variable CCACHE_MODE.
+    default: actions
+  key:
+    description: Actions-cache key, as for hendrikmuhs/ccache-action. Only used in 'actions' mode.
+    default: ''
+  write-only:
+    description: >
+      'true' compiles every file and writes the results without reading any. Set it on pushes to
+      main, so tagged builds never reuse an object a PR wrote. In 'actions' mode it skips the restore.
+    default: 'false'
+  fork:
+    description: "'true' installs StaflSystems' IAR-capable ccache fork instead of the system ccache."
+    default: 'false'
+  config-path:
+    description: ccache config file, relative to the workspace. Skipped if it doesn't exist.
+    default: ccache_config.conf
+  aws-url:
+    description: The AWS store, for GitHub-hosted runners. Pass vars.AWS_CCACHE_URL.
+    default: ''
+  aws-password:
+    description: Password of the AWS store's ci user. Pass secrets.AWS_CCACHE_HTTP_PASSWORD.
+    default: ''
+  lan-url:
+    description: The office LAN store, for self-hosted runners. Pass vars.LAN_CCACHE_URL.
+    default: ''
+  lan-password:
+    description: Password of the LAN store's ci user. Pass secrets.LAN_CCACHE_HTTP_PASSWORD.
+    default: ''
+
+outputs:
+  store:
+    description: The store this job uses ('aws', 'lan'), or 'none' in 'actions' mode or if it couldn't reach one.
+    value: ${{ steps.remote.outputs.store || 'none' }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install the IAR-capable ccache
+      if: inputs.fork == 'true'
+      shell: bash
+      run: |
+        dir="$RUNNER_TEMP/ccache-fork"
+        rm -rf "$dir" && mkdir -p "$dir" && cd "$dir"
+        curl -fsSL -o ccache.tar.xz \
+          https://github.com/StaflSystems/ccache/releases/download/v4.12.2/ccache-iarsupport.26383df4-linux-x86_64.tar.xz
+        tar xf ccache.tar.xz
+        mv ccache-iarsupport.26383df4-linux-x86_64/ccache .
+        echo "$dir" >> "$GITHUB_PATH"
+
+    - name: Use the repository's ccache config
+      shell: bash
+      env:
+        CONFIG_PATH: ${{ inputs.config-path }}
+      run: |
+        if [ -f "$GITHUB_WORKSPACE/$CONFIG_PATH" ]; then
+          echo "CCACHE_CONFIGPATH=$GITHUB_WORKSPACE/$CONFIG_PATH" >> "$GITHUB_ENV"
+        fi
+
+    - name: Connect to the shared ccache store
+      id: remote
+      if: inputs.mode == 'remote'
+      shell: bash
+      env:
+        RUNNER_ENVIRONMENT: ${{ runner.environment }}
+        AWS_URL: ${{ inputs.aws-url }}
+        AWS_PASSWORD: ${{ inputs.aws-password }}
+        LAN_URL: ${{ inputs.lan-url }}
+        LAN_PASSWORD: ${{ inputs.lan-password }}
+        WRITE_ONLY: ${{ inputs.write-only }}
+      run: bash "$GITHUB_ACTION_PATH/connect.sh"
+
+    - name: ccache
+      uses: hendrikmuhs/ccache-action@v1.2
+      with:
+        key: ${{ inputs.key }}
+        restore: ${{ inputs.mode != 'remote' && inputs.write-only != 'true' }}
+        save: ${{ inputs.mode != 'remote' }}

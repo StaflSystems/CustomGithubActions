@@ -4,24 +4,27 @@ on:
   pull_request:
   push:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  # Each test suite runs only when its action changed, or when this workflow did.
+  # Each test suite runs only when its action changed, or when this workflow did. A manual run runs them all.
   changes:
     runs-on: ubuntu-latest
     permissions:
       contents: read
       pull-requests: read
     outputs:
-      review: ${{ steps.filter.outputs.review }}
-      ci_metrics: ${{ steps.filter.outputs.ci_metrics }}
-      plan_ci_tier: ${{ steps.filter.outputs.plan_ci_tier }}
+      review: ${{ github.event_name == 'workflow_dispatch' && 'true' || steps.filter.outputs.review }}
+      ci_metrics: ${{ github.event_name == 'workflow_dispatch' && 'true' || steps.filter.outputs.ci_metrics }}
+      plan_ci_tier: ${{ github.event_name == 'workflow_dispatch' && 'true' || steps.filter.outputs.plan_ci_tier }}
+      setup_ccache: ${{ github.event_name == 'workflow_dispatch' && 'true' || steps.filter.outputs.setup_ccache }}
     steps:
       - uses: actions/checkout@v4.1.2
       - uses: dorny/paths-filter@v3
+        if: github.event_name != 'workflow_dispatch'
         id: filter
         with:
           filters: |
@@ -36,6 +39,9 @@ jobs:
             plan_ci_tier:
               - .github/workflows/ci.yml
               - PlanCITier/**
+            setup_ccache:
+              - .github/workflows/ci.yml
+              - SetupCcache/**
 
   review-tests:
     name: Review action tests
@@ -71,11 +77,22 @@ jobs:
           node-version: 20
       - run: node --test PlanCITier/
 
+  # The end-to-end smoke test needs the org's private ccache stores and the ubuntu-iar runners,
+  # which this public repository can't use. It runs in StaflSystems/ci-smoke-tests instead.
+  setup-ccache-lint:
+    name: SetupCcache lint
+    needs: changes
+    if: needs.changes.outputs.setup_ccache == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.1.2
+      - run: shellcheck SetupCcache/*.sh
+
   # The required check. It runs on every PR and passes only if each suite that should run passed
   # and the rest were skipped.
   ci-status:
     name: CI Status
-    needs: [changes, review-tests, ci-metrics-tests, plan-ci-tier-tests]
+    needs: [changes, review-tests, ci-metrics-tests, plan-ci-tier-tests, setup-ccache-lint]
     if: always() && !cancelled()
     runs-on: ubuntu-latest
     steps:
@@ -85,9 +102,11 @@ jobs:
           REVIEW: ${{ needs.review-tests.result }}
           CI_METRICS: ${{ needs.ci-metrics-tests.result }}
           PLAN_CI_TIER: ${{ needs.plan-ci-tier-tests.result }}
+          SETUP_CCACHE: ${{ needs.setup-ccache-lint.result }}
           RUN_REVIEW: ${{ needs.changes.outputs.review }}
           RUN_CI_METRICS: ${{ needs.changes.outputs.ci_metrics }}
           RUN_PLAN_CI_TIER: ${{ needs.changes.outputs.plan_ci_tier }}
+          RUN_SETUP_CCACHE: ${{ needs.changes.outputs.setup_ccache }}
         run: |
           failed=0
           expect() { # job, its result, whether it should run
@@ -102,4 +121,5 @@ jobs:
           expect "Review action tests" "$REVIEW" "$RUN_REVIEW"
           expect "CIMetrics tests" "$CI_METRICS" "$RUN_CI_METRICS"
           expect "PlanCITier tests" "$PLAN_CI_TIER" "$RUN_PLAN_CI_TIER"
+          expect "SetupCcache lint" "$SETUP_CCACHE" "$RUN_SETUP_CCACHE"
           exit $failed
