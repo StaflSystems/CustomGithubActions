@@ -16,7 +16,9 @@ inputs:
     description: Team the domain approver is picked from.
     default: embeddedreviewersstaff
   review-team:
-    description: Team requested as reviewers on every ready PR. Defaults to the rotation team.
+    description: >
+      Team whose members are each requested as reviewers on every ready PR, except the author,
+      anyone already requested and anyone whose approval stands. Defaults to the rotation team.
     default: ''
   max-stack-depth:
     description: How many PRs down the stack to look for assignees to inherit.

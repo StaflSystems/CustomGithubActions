@@ -20,9 +20,12 @@ What it does each time a PR is opened ready or marked ready:
    doesn't count). PRs merge quickly, so most people are at 0 most of the time and ties are common:
    they go to whoever was assigned to someone else's PR longest ago (anyone not assigned recently
    first), then rotate by PR number.
-4. **Requests reviewers.** It requests the review team (default `embeddedreviewers`) unless someone
-   from it has already been requested or has reviewed, so restacks don't re-request approvers. An
-   assignee from outside the team is requested individually.
+4. **Requests reviewers.** It requests each member of the review team (default `embeddedreviewers`)
+   individually, plus any assignee from outside the team. It leaves out the author, anyone already
+   requested, and anyone whose approval stands, so reruns and draft round-trips don't re-request
+   approvers, while a comment left early doesn't keep the rest of the team from being asked. The
+   team itself isn't requested: its auto-assignment would turn that back into requests for
+   everyone, approvers included.
 
 The author is never an assignee; a self-assignment is removed. Drafts, bot PRs and Graphite
 merge-queue PRs are skipped. Team review auto-assignment settings are left as they are.

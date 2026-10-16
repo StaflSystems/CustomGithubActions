@@ -7,8 +7,9 @@
 // - Otherwise it picks the least-loaded available member of each team: fewest open, ready PRs
 //   already assigned to them (not counting their own), skipping anyone the PTO calendar has out
 //   today or next business day. Ties go to whoever was assigned longest ago.
-// - The author is never an assignee (a self-assignment is removed). The review team is requested
-//   unless someone from it already is, and an assignee outside the team is requested individually.
+// - The author is never an assignee (a self-assignment is removed). Each member of the review team,
+//   and any assignee outside it, is requested individually, unless they already are or their
+//   approval stands.
 // - A PR that already has a domain approver and a second assignee only gets the review requests
 //   topped up, so reruns are harmless and hand-picked assignees are kept.
 
@@ -127,24 +128,29 @@ module.exports = async ({ github, context, core, inputs, sleep = (ms) => new Pro
     await github.rest.issues.removeAssignees({ owner, repo, issue_number: pr.number, assignees: [author] });
     notes.push(`removed author ${author} from assignees`);
   }
-  const reviewed = new Set(
-    humanLogins((await github.paginate(github.rest.pulls.listReviews, { owner, repo, pull_number: pr.number, per_page: 100 })).map((r) => r.user)),
-  );
-  const requested = new Set(humanLogins(current.requested_reviewers));
-  const involved = (login) => requested.has(login) || reviewed.has(login);
-  // The whole review team is requested, as authors used to do by hand, unless someone from it
-  // already has been or has reviewed (so reruns and restacks don't re-request approvers).
-  const reviewTeamMembers = await teamMembers(github, owner, reviewTeam);
-  const teamAlreadyRequested = (current.requested_teams || []).some((t) => t.slug === reviewTeam);
-  if (!teamAlreadyRequested && !reviewTeamMembers.some((login) => login !== author && involved(login))) {
-    await github.rest.pulls.requestReviewers({ owner, repo, pull_number: pr.number, team_reviewers: [reviewTeam] });
-    for (const login of reviewTeamMembers) requested.add(login);
-    notes.push(`requested team ${reviewTeam}`);
+  // Everyone on the review team, and any assignee from outside it (a designated domain owner, say),
+  // is requested individually rather than as a team: the team's auto-assignment turns a team
+  // request back into the same individual requests, approvers included, so the only way to leave
+  // out the people who don't need asking is per person. That's the author, anyone already
+  // requested, and anyone whose approval stands. A review that's only a comment, or an approval
+  // since dismissed or replaced by a change request, doesn't count, so an early comment doesn't
+  // keep anyone else from being asked.
+  const reviews = await github.paginate(github.rest.pulls.listReviews, { owner, repo, pull_number: pr.number, per_page: 100 });
+  const decisive = new Map();
+  for (const review of reviews) {
+    if (!isBot(review.user) && (review.state === 'APPROVED' || review.state === 'CHANGES_REQUESTED')) decisive.set(review.user.login, review.state);
   }
-  // Assignees from outside the team (a designated domain owner, say) are requested individually.
-  const toRequest = [...named].filter((login) => !involved(login));
+  const approved = (login) => decisive.get(login) === 'APPROVED';
+  const requested = new Set(humanLogins(current.requested_reviewers));
+  // A team that's already requested (by hand, say) already covers its members.
+  const reviewTeamMembers = await teamMembers(github, owner, reviewTeam);
+  if ((current.requested_teams || []).some((t) => t.slug === reviewTeam)) for (const login of reviewTeamMembers) requested.add(login);
+  const toRequest = [...new Set([...reviewTeamMembers, ...named])].filter(
+    (login) => login !== author && !requested.has(login) && !approved(login),
+  );
   if (toRequest.length > 0) {
     await github.rest.pulls.requestReviewers({ owner, repo, pull_number: pr.number, reviewers: toRequest });
+    notes.push(`requested ${toRequest.join(', ')}`);
   }
 
   core.info(`Assignees: ${[...named].join(', ') || 'none'}${notes.length ? ` (${notes.join('; ')})` : ''}.`);

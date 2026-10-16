@@ -165,7 +165,10 @@ test('bottom of stack: least-loaded staff approver and rotation reviewer, whole 
   });
   await run(fake, 10);
   assert.deepStrictEqual(fake.pr(10).assignees, ['staffB', 'devF']);
-  assert.deepStrictEqual(fake.pr(10).teams, ['embeddedreviewers']);
+  // Each member but the author, individually, in one request; never the team itself.
+  assert.deepStrictEqual(fake.pr(10).requested, ['staffA', 'staffB', 'staffC', 'devD', 'devF']);
+  assert.deepStrictEqual(fake.pr(10).teams, []);
+  assert.strictEqual(fake.calls.review.length, 1);
 });
 
 test('staff author is never an assignee', async () => {
@@ -342,7 +345,7 @@ test("replaces an author's self-assignment", async () => {
   assert.strictEqual(fake.pr(70).assignees.length, 2);
 });
 
-test('keeps hand-picked assignees and does not re-request a team someone already reviewed for', async () => {
+test('keeps hand-picked assignees and does not re-request someone whose approval stands', async () => {
   const fake = fakeGithub({
     prs: [
       {
@@ -351,15 +354,39 @@ test('keeps hand-picked assignees and does not re-request a team someone already
         head: 'a',
         base: 'main',
         assignees: ['staffB', 'devF'],
+        requested: ['devD'],
         reviews: [['staffB', 'APPROVED']],
       },
     ],
   });
   await run(fake, 71);
   assert.deepStrictEqual(fake.calls.assign, []);
-  assert.ok(fake.calls.review.every((c) => c.team_reviewers.length === 0));
-  // devF hasn't reviewed or been requested, so they're requested individually.
-  assert.deepStrictEqual(fake.pr(71).requested, ['devF']);
+  // staffB approved and devD is already requested; everyone else on the team is asked.
+  assert.deepStrictEqual(fake.calls.review, [{ pull_number: 71, reviewers: ['staffA', 'staffC', 'devF'], team_reviewers: [] }]);
+});
+
+test('an early comment doesn\'t keep the rest of the team from being asked, and neither does a superseded approval', async () => {
+  // staffA commented while it was a draft; devD approved and then requested changes.
+  const fake = fakeGithub({
+    prs: [{ number: 74, author: 'devE', head: 'a', base: 'main', assignees: ['staffA', 'devD'], reviews: [['staffA', 'COMMENTED'], ['devD', 'APPROVED'], ['devD', 'CHANGES_REQUESTED']] }],
+  });
+  await run(fake, 74);
+  assert.deepStrictEqual(fake.pr(74).requested, ['staffA', 'staffB', 'staffC', 'devD', 'devF']);
+});
+
+test('a rerun after everyone was asked requests no one', async () => {
+  const fake = fakeGithub({ prs: [{ number: 75, author: 'devE', head: 'a', base: 'main' }] });
+  await run(fake, 75);
+  await run(fake, 75);
+  assert.strictEqual(fake.calls.review.length, 1);
+});
+
+test('when the team itself is already requested, its members aren\'t asked again individually', async () => {
+  const fake = fakeGithub({
+    prs: [{ number: 76, author: 'devE', head: 'a', base: 'main', assignees: ['staffA', 'ownerX'], teams: ['embeddedreviewers'] }],
+  });
+  await run(fake, 76);
+  assert.deepStrictEqual(fake.pr(76).requested, ['ownerX']);
 });
 
 test('requests an assignee from outside the team individually', async () => {
@@ -370,8 +397,8 @@ test('requests an assignee from outside the team individually', async () => {
     ],
   });
   await run(fake, 73);
-  assert.deepStrictEqual(fake.pr(73).teams, ['embeddedreviewers']);
-  assert.deepStrictEqual(fake.pr(73).requested, ['ownerX']);
+  assert.deepStrictEqual(fake.pr(73).teams, []);
+  assert.deepStrictEqual(fake.pr(73).requested, ['staffA', 'staffB', 'staffC', 'devD', 'devF', 'ownerX']);
 });
 
 test('ignores drafts, bots and merge-queue PRs', async () => {
