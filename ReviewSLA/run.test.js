@@ -241,6 +241,44 @@ test('the new assignee isn\'t asked again on a PR they\'ve already approved', as
   assert.deepStrictEqual(w.calls.requested, [[2, 'mhamilton']]);
 });
 
+test('someone who requests changes becomes an assignee, owes nothing yet, and is recorded', async () => {
+  const w = world({ prs: [onePr({ timeline: [reviewItem('dvaughan', 'CHANGES_REQUESTED', '2026-10-01T17:30:00Z')] })] });
+  const { logs } = await go(w, { now: '2026-10-01T18:00:00Z' });
+  assert.deepStrictEqual(w.calls.assign, [[1, 'dvaughan']]);
+  assert.ok(logs.includes('StaflLib#1: added dvaughan as assignees (reviewed).'));
+  const sticky = w.calls.comments.find((c) => c.body.startsWith(MARKER));
+  assert.ok(sticky.body.startsWith(`${MARKER} {"reminded":[],"added":["dvaughan"]} -->`));
+  assert.doesNotMatch(sticky.body, /`dvaughan`/);
+  // The next run adds no one and keeps the record.
+  await go(w, { now: '2026-10-01T18:30:00Z' });
+  assert.deepStrictEqual(w.calls.assign, [[1, 'dvaughan']]);
+  assert.ok(w.pr(1).comments[0].body.startsWith(`${MARKER} {"reminded":[],"added":["dvaughan"]} -->`));
+});
+
+test('shadow only logs who it would add', async () => {
+  const w = world({ prs: [onePr({ timeline: [reviewItem('dvaughan', 'COMMENTED', '2026-10-01T17:30:00Z')] })] });
+  const { logs } = await go(w, { mode: 'shadow', now: '2026-10-01T18:00:00Z' });
+  assert.deepStrictEqual(w.calls.assign, []);
+  assert.ok(logs.includes('StaflLib#1: would add dvaughan as assignees (shadow).'));
+});
+
+test('an added reviewer re-requested after a push gets a re-review clock, and isn\'t handed off when out', async () => {
+  const w = world({
+    prs: [
+      onePr({
+        headRefOid: 'new',
+        reviewCommits: { 7: 'old' },
+        timeline: [reviewItem('dvaughan', 'CHANGES_REQUESTED', '2026-10-01T17:30:00Z', 7), requestedItem('dvaughan', '2026-10-01T18:00:00Z')],
+      }),
+    ],
+    out: [['Person dvaughan', '2026-10-01']],
+  });
+  const { result } = await go(w, { now: '2026-10-01T19:00:00Z' });
+  assert.deepStrictEqual(w.calls.assign, [[1, 'dvaughan']]);
+  assert.deepStrictEqual(w.calls.unassign, []);
+  assert.deepStrictEqual(result.clocks.filter((c) => c.login === 'dvaughan').map((c) => c.kind), ['re-review']);
+});
+
 test('on a public repo, the reassignment notice doesn\'t say the person is out', async () => {
   const w = world({ prs: [onePr()], out: [['Person ghopper', '2026-10-01']], isPrivate: false });
   await go(w, { now: '2026-10-01T18:00:00Z' });

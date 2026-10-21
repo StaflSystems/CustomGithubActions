@@ -11,8 +11,9 @@ What it does each time a PR is opened ready or marked ready:
 1. **Keeps what's there.** If the PR already has a domain approver and a second assignee, it doesn't
    pick anyone, so reruns are harmless and hand-picked assignees stay.
 2. **Inherits down the stack.** Mid-stack, it copies the assignees of the nearest PR below it that has
-   any. If the PR directly below is ready but has no assignees yet, as when a whole stack is submitted
-   at once, it waits up to two minutes for that PR's own run.
+   any, leaving out anyone ReviewSLA added there because they reviewed it. If the PR directly below
+   is ready but has no assignees yet, as when a whole stack is submitted at once, it waits up to two
+   minutes for that PR's own run.
 3. **Picks the rest.** It adds the least-loaded domain approver if there's none, then the
    least-loaded rotation reviewer if there are fewer than two. Load is the number of open, ready PRs
    already assigned to that person in the org, not counting PRs they wrote themselves; anyone the

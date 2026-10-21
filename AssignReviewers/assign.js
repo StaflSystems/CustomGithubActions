@@ -15,6 +15,7 @@
 
 const { pickLeastLoaded, teamMembers } = require('../ReviewConfig/pick.js');
 const { awaySoon } = require('../ReviewConfig/pto.js');
+const { MARKER, parseState } = require('../ReviewSLA/comment.js');
 
 function isBot(user) {
   return !user || user.type === 'Bot' || user.login.endsWith('[bot]');
@@ -25,7 +26,9 @@ function humanLogins(users) {
 }
 
 // Walks down the stack (this PR's base, then that PR's base, ...) and returns the assignees of the
-// nearest open PR that has any, or null when the walk reaches a branch with no open PR.
+// nearest open PR that has any, or null when the walk reaches a branch with no open PR. Assignees
+// ReviewSLA added to a PR because they reviewed it (recorded in its Review SLA comment) aren't
+// carried up: they answer for that PR, not the stack.
 //
 // When a whole stack is submitted at once, every PR's run starts together. So if a ready PR below
 // has no assignees yet, wait for its own run to assign them before looking further down.
@@ -38,7 +41,12 @@ async function inheritedAssignees(github, owner, repo, pr, author, { maxDepth, p
   const seen = new Set([pr.number]);
   const assigneesOf = async (number) => {
     const { data } = await github.rest.pulls.get({ owner, repo, pull_number: number });
-    return humanLogins(data.assignees).filter((login) => login !== author && login !== data.user.login);
+    const logins = humanLogins(data.assignees).filter((login) => login !== author && login !== data.user.login);
+    if (logins.length === 0) return logins;
+    const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number: number, per_page: 100 });
+    const sticky = comments.find((c) => c.body?.startsWith(MARKER));
+    const added = sticky ? parseState(sticky.body).added : [];
+    return logins.filter((login) => !added.includes(login));
   };
   // PRs from other repos (forks) can share a branch name with this repo's stack, so they're left out.
   const thisRepo = `${owner}/${repo}`.toLowerCase();

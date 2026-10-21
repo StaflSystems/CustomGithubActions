@@ -1,6 +1,7 @@
 // The one Review SLA comment on each ready PR: who owes what, and when it's due. Its first line
 // is a hidden marker that also records which reminders have been sent, so reruns and late
-// scheduled runs don't send them twice.
+// scheduled runs don't send them twice, and which assignees were added because they reviewed
+// (`added`), so they aren't handed off when they're out or carried up the stack.
 
 const { TIME_ZONE } = require('../ReviewConfig/pto.js');
 const { SMALL_PR_LINES, TARGET_HOURS } = require('./clock.js');
@@ -42,9 +43,10 @@ function parseState(body) {
   const match = body && new RegExp(`^${MARKER} (.*?) -->`).exec(body);
   try {
     const state = match ? JSON.parse(match[1]) : {};
-    return { reminded: Array.isArray(state.reminded) ? state.reminded : [] };
+    const strings = (value) => (Array.isArray(value) ? value.filter((v) => typeof v === 'string') : []);
+    return { reminded: strings(state.reminded), added: strings(state.added) };
   } catch {
-    return { reminded: [] };
+    return { reminded: [], added: [] };
   }
 }
 

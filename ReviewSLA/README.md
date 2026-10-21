@@ -16,7 +16,7 @@ the rollback for every step:
 | --- | --- |
 | `off`, or unset | Nothing; the job is skipped |
 | `shadow` | Keeps each PR's Review SLA comment, the Confluence dashboard and the 10:00 Slack digest up to date |
-| `remind` | Also DMs each assignee when their review is due, and reassigns anyone the PTO calendar has out before their review is due |
+| `remind` | Also makes anyone who requests changes or comments an assignee, DMs each assignee when their review is due, and reassigns anyone the PTO calendar has out before their review is due |
 | `enforce` | Reassignment at twice the target. Not built yet; runs as `remind` |
 
 ### Who owes what
@@ -43,8 +43,17 @@ Bot PRs and Graphite merge-queue PRs have no clocks.
 
 - **A Review SLA comment** on each ready PR where someone owes a review, edited in place: who owes
   what, and when it's due. A hidden marker in it records which reminders have been sent, so reruns
-  and late scheduled runs don't send them twice. The comment is written before the DM, so a failed
-  write means a missed reminder, not a repeated one.
+  and late scheduled runs don't send them twice, and who was added as an assignee because they
+  reviewed. The comment is written before the DM, so a failed write means a missed reminder, not a
+  repeated one.
+- **Reviewers become assignees** (`remind`; `shadow` only logs it): anyone but the author or a bot
+  who requests changes, or leaves a comment review with a body or inline comments, after the PR was
+  last marked ready is made an assignee of that PR, so the author waiting on them shows on their
+  clocks, reminders and the dashboard. Their review is their first response: they owe a re-review
+  when it's re-requested after a push. Approvals don't add anyone. They're added to that PR only.
+  AssignReviewers doesn't carry them up the stack, and out-of-office reassignment leaves them, since
+  nobody else can answer their review. They still count toward their open assigned PRs when
+  AssignReviewers picks by load.
 - **Reminder DMs** (`remind`): one per clock, when it's due, to the assignee's Slack ID in
   `REVIEW_PEOPLE`, linking to the PR in Graphite.
 - **Out-of-office reassignment** (`remind`): an assignee the PTO calendar has out on any day from
