@@ -12,7 +12,7 @@ const EVERYONE = [...STAFF, 'devD', 'devE', 'devF'];
 // does in a repo that is a fork of another repo in the same org.
 function fakeGithub({ prs, load = {}, assigned = {}, fork = false }) {
   const calls = { assign: [], unassign: [], review: [], graphql: 0 };
-  const byNumber = new Map(prs.map((p) => [p.number, { assignees: [], requested: [], teams: [], reviews: [], ...p }]));
+  const byNumber = new Map(prs.map((p) => [p.number, { assignees: [], requested: [], teams: [], reviews: [], comments: [], ...p }]));
   const teams = { embeddedreviewersstaff: STAFF, embeddedreviewers: EVERYONE };
   const user = (login) => ({ login, type: 'User' });
   const github = {
@@ -87,6 +87,7 @@ function fakeGithub({ prs, load = {}, assigned = {}, fork = false }) {
         },
       },
       issues: {
+        listComments: async ({ issue_number }) => ({ data: byNumber.get(issue_number).comments.map((body) => ({ body })) }),
         addAssignees: async ({ issue_number, assignees }) => {
           calls.assign.push(...assignees);
           byNumber.get(issue_number).assignees.push(...assignees);
@@ -190,6 +191,18 @@ test('mid-stack: copies the assignees of the PR below without picking anyone', a
   await run(fake, 21);
   assert.deepStrictEqual(fake.pr(21).assignees.sort(), ['devD', 'staffC']);
   assert.strictEqual(fake.calls.graphql, 0);
+});
+
+test('mid-stack: leaves out assignees ReviewSLA added below because they reviewed', async () => {
+  const sticky = '<!-- review-sla {"reminded":[],"added":["devF"]} -->\n**Review SLA**';
+  const fake = fakeGithub({
+    prs: [
+      { number: 22, author: 'devE', head: 'a', base: 'main', assignees: ['staffC', 'devD', 'devF'], comments: [sticky] },
+      { number: 23, author: 'devE', head: 'b', base: 'a' },
+    ],
+  });
+  await run(fake, 23);
+  assert.deepStrictEqual(fake.pr(23).assignees.sort(), ['devD', 'staffC']);
 });
 
 test('skips a draft parent with no assignees and inherits from further down', async () => {

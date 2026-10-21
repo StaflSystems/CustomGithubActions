@@ -4,8 +4,9 @@
 //   off      does nothing
 //   shadow   keeps each PR's Review SLA comment, the Confluence dashboard and the 10:00 Slack digest
 //            up to date (kept as the rollback)
-//   remind   also DMs each assignee when their review is due, and reassigns an assignee the PTO
-//            calendar has out before their review is due, across the whole stack
+//   remind   also makes anyone who requests changes or comments an assignee, DMs each assignee when
+//            their review is due, and reassigns an assignee the PTO calendar has out before their
+//            review is due, across the whole stack
 //   enforce  reassignment at twice the target (step 3); not built yet, so it runs as remind
 //
 // It fails safe: an API error is a warning, and that PR, repo or channel is skipped for this run.
@@ -18,7 +19,7 @@ const { hasSla } = require('./clock.js');
 const { parseState, reminderKey, renderComment } = require('./comment.js');
 const { renderDashboard, updateDashboard } = require('./confluence.js');
 const { fetchOpenPrs } = require('./github.js');
-const { approvedAt, assigneesOf, owedClocks, readySince, stackOf } = require('./owed.js');
+const { approvedAt, assigneesOf, owedClocks, readySince, reviewersToAdd, stackOf } = require('./owed.js');
 const { digestText, postMessage, reminderText } = require('./slack.js');
 
 const MODES = ['off', 'shadow', 'remind', 'enforce'];
@@ -75,7 +76,7 @@ function outBefore(out, login, due, now) {
 // Replaces `login` with someone from the same team on every PR in the stack they're assigned to
 // and haven't approved; their approvals stand. The domain approver is replaced from the domain
 // team, the rotation reviewer from the rotation team.
-async function reassign({ github, core, owner, inputs, teams, clock, stack, out, now }) {
+async function reassign({ github, core, owner, inputs, teams, clock, stack, out, now, wasAdded = () => false }) {
   const { pr, login } = clock;
   const others = assigneesOf(pr).filter((l) => l !== login);
   const domain = await teams(inputs.domainTeam);
@@ -90,7 +91,8 @@ async function reassign({ github, core, owner, inputs, teams, clock, stack, out,
     core.warning(`${pr.repo}#${pr.number}: ${login} is out before their review is due, but no one else in ${team} is available.`);
     return [];
   }
-  const changed = stack.filter((p) => assigneesOf(p).includes(login) && !approvedAt(p, login));
+  // A PR they were added to because they reviewed stays theirs: no one else can answer their review.
+  const changed = stack.filter((p) => assigneesOf(p).includes(login) && !approvedAt(p, login) && !wasAdded(p, login));
   if (changed.length === 0) return [];
   for (const p of changed) {
     await github.rest.issues.removeAssignees({ owner, repo: p.repo, issue_number: p.number, assignees: [login] });
@@ -131,20 +133,46 @@ module.exports = async function run({ github, core, inputs, now = new Date(), fe
   const repos = (inputs.repos || '').split(/[\s,]+/).filter(Boolean);
   const dashboardUrl = inputs.dashboardUrl || '';
 
-  // 1. Every open PR, and every running clock.
+  // 1. Every open PR.
   const prs = [];
-  let clocks = [];
+  const byRepo = [];
   for (const repo of repos) {
     try {
       const open = await fetchOpenPrs({ github, core, owner, repo });
       prs.push(...open);
-      clocks.push(...owedClocks(open, { now, holidays }));
+      byRepo.push(open);
     } catch (error) {
       core.warning(`${repo}: couldn't read open PRs (${error.message}); skipping it this run.`);
     }
   }
 
-  // 2. Out of office: hand the review to someone else before it's due.
+  // 2. Anyone who has requested changes or commented since the PR was last marked ready becomes an
+  //    assignee, so the author waiting on them shows up in their clocks. Who was added this way is
+  //    kept in the PR's comment, as long as they stay assigned.
+  const added = new Map(prs.map((pr) => [pr, new Set(parseState(pr.sticky?.body).added.filter((l) => pr.assignees.includes(l)))]));
+  const wasAdded = (pr, login) => Boolean(added.get(pr)?.has(login));
+  for (const pr of prs) {
+    const toAdd = reviewersToAdd(pr);
+    if (toAdd.length === 0) continue;
+    if (!remind) {
+      core.info(`${pr.repo}#${pr.number}: would add ${toAdd.join(', ')} as assignees (${mode}).`);
+      continue;
+    }
+    try {
+      await github.rest.issues.addAssignees({ owner, repo: pr.repo, issue_number: pr.number, assignees: toAdd });
+      pr.assignees = [...pr.assignees, ...toAdd];
+      for (const login of toAdd) added.get(pr).add(login);
+      core.info(`${pr.repo}#${pr.number}: added ${toAdd.join(', ')} as assignees (reviewed).`);
+    } catch (error) {
+      core.warning(`${pr.repo}#${pr.number}: couldn't add ${toAdd.join(', ')} as assignees (${error.message}).`);
+    }
+  }
+
+  // 3. Every running clock.
+  let clocks = byRepo.flatMap((open) => owedClocks(open, { now, holidays }));
+
+  // 4. Out of office: hand the review to someone else before it's due, except reviews owed by
+  //    someone added because they reviewed.
   if (remind && clocks.length > 0) {
     const out = await readOutDates({ url: inputs.ptoCalendarUrl, core, people, now, fetch, holidays });
     if (out) {
@@ -155,10 +183,11 @@ module.exports = async function run({ github, core, inputs, now = new Date(), fe
       };
       const reassigned = new Set();
       for (const clock of clocks) {
-        if (reassigned.has(`${clock.pr.repo}#${clock.pr.number}:${clock.login}`) || !outBefore(out, clock.login, clock.due, now)) continue;
+        if (reassigned.has(`${clock.pr.repo}#${clock.pr.number}:${clock.login}`) || wasAdded(clock.pr, clock.login)) continue;
+        if (!outBefore(out, clock.login, clock.due, now)) continue;
         const stack = stackOf(clock.pr, prs.filter((p) => p.repo === clock.pr.repo));
         try {
-          for (const key of await reassign({ github, core, owner, inputs, teams, clock, stack, out, now })) reassigned.add(key);
+          for (const key of await reassign({ github, core, owner, inputs, teams, clock, stack, out, now, wasAdded })) reassigned.add(key);
         } catch (error) {
           core.warning(`${clock.pr.repo}#${clock.pr.number}: couldn't reassign ${clock.login} (${error.message}).`);
         }
@@ -167,14 +196,15 @@ module.exports = async function run({ github, core, inputs, now = new Date(), fe
     }
   }
 
-  // 3. Each PR's comment, then the DMs it records. The comment is written first, so a failed
+  // 5. Each PR's comment, then the DMs it records. The comment is written first, so a failed
   //    write means a missed reminder rather than a repeated one.
   const slackIdMissing = new Set();
   let reminders = 0;
   for (const pr of prs) {
     if (!hasSla(pr)) continue;
     const mine = clocks.filter((c) => c.pr === pr);
-    if (!pr.sticky && mine.length === 0) continue;
+    const addedHere = [...added.get(pr)];
+    if (!pr.sticky && mine.length === 0 && addedHere.length === 0) continue;
     const keys = new Set(mine.map(reminderKey));
     const reminded = parseState(pr.sticky?.body).reminded.filter((k) => keys.has(k));
     const due = !remind || !inputs.slackToken ? [] : mine.filter((c) => c.overdue && !reminded.includes(reminderKey(c)));
@@ -184,6 +214,7 @@ module.exports = async function run({ github, core, inputs, now = new Date(), fe
       return false;
     });
     const state = { reminded: [...reminded, ...sendable.map(reminderKey)] };
+    if (addedHere.length > 0) state.added = addedHere;
     const body = renderComment(readySince(pr) ? mine : [], state, { dashboardUrl });
     try {
       if (!pr.sticky) await github.rest.issues.createComment({ owner, repo: pr.repo, issue_number: pr.number, body });
@@ -203,7 +234,7 @@ module.exports = async function run({ github, core, inputs, now = new Date(), fe
   }
   if (slackIdMissing.size > 0) core.warning(`No Slack ID in REVIEW_PEOPLE for ${[...slackIdMissing].join(', ')}, so they get no reminders.`);
 
-  // 4. The 10:00 digest.
+  // 6. The 10:00 digest.
   if (isDigestRun(inputs, now)) {
     if (!inputs.slackToken || !inputs.slackChannel) core.info('No Slack token or digest channel configured; no digest.');
     else {
@@ -216,7 +247,7 @@ module.exports = async function run({ github, core, inputs, now = new Date(), fe
     }
   }
 
-  // 5. The dashboard.
+  // 7. The dashboard.
   if (!inputs.confluenceUrl || !inputs.confluenceUser || !inputs.confluenceToken || !inputs.confluencePageId) {
     core.info('Confluence isn\'t fully configured; not updating the dashboard.');
   } else {

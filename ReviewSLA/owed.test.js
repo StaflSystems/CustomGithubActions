@@ -1,7 +1,7 @@
 // Run with: node --test ReviewSLA/
 const test = require('node:test');
 const assert = require('node:assert');
-const { owedClocks, stackOf } = require('./owed.js');
+const { owedClocks, reviewersToAdd, stackOf } = require('./owed.js');
 
 const HOLIDAYS = { 2026: [{ date: '2026-11-26' }, { date: '2026-11-27' }] };
 const at = (iso) => new Date(iso);
@@ -189,4 +189,22 @@ test('a re-request with no push since the last review (a Graphite resubmit) star
     ],
   });
   assert.deepStrictEqual(clocks([p], '2026-10-01T21:00:00Z'), []);
+});
+
+test('reviewers who requested changes or commented since ready are the ones to add', () => {
+  const p = pr({
+    timeline: [
+      ['review', '2026-10-01T16:00:00Z', review('early', 'COMMENTED')], // before it was marked ready
+      ['ready', '2026-10-01T17:00:00Z'],
+      ['review', '2026-10-01T18:00:00Z', review('changes', 'CHANGES_REQUESTED')],
+      ['review', '2026-10-01T18:05:00Z', review('commenter', 'COMMENTED')],
+      ['review', '2026-10-01T18:10:00Z', { ...review('empty', 'COMMENTED'), body: '' }],
+      ['review', '2026-10-01T18:15:00Z', review('approver', 'APPROVED')],
+      ['review', '2026-10-01T18:20:00Z', review('ghopper', 'CHANGES_REQUESTED')], // already an assignee
+      ['review', '2026-10-01T18:25:00Z', review('alovelace', 'COMMENTED')], // the author
+      ['review', '2026-10-01T18:30:00Z', { ...review('codecov[bot]', 'COMMENTED'), author: { login: 'codecov[bot]', bot: true } }],
+    ],
+  });
+  assert.deepStrictEqual(reviewersToAdd(p), ['changes', 'commenter']);
+  assert.deepStrictEqual(reviewersToAdd({ ...p, isDraft: true }), []);
 });

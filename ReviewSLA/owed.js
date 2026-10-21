@@ -107,6 +107,23 @@ function clockFor(pr, login, readyAt, lower) {
   return null;
 }
 
+// Reviewers the author now waits on who aren't assignees: anyone but the author or a bot who has
+// requested changes, or left a comment review that counts as a response, since the PR was last
+// marked ready. They're made assignees so they get the same clocks and reminders; their review is
+// their first response, so they owe a re-review only when it's re-requested after a push.
+function reviewersToAdd(pr) {
+  const readyAt = readySince(pr);
+  if (!readyAt || !hasSla(pr)) return [];
+  const logins = new Set();
+  for (const e of pr.timeline) {
+    if (e.type !== 'review' || e.at < readyAt || isBot(e.author)) continue;
+    const login = e.author.login;
+    if (login === pr.author.login || pr.assignees.includes(login)) continue;
+    if (e.state === 'CHANGES_REQUESTED' || (e.state === 'COMMENTED' && countsAsResponse(e))) logins.add(login);
+  }
+  return [...logins];
+}
+
 // Every running clock across `prs` (the open PRs of one repo):
 // [{ pr, login, kind: 'first' | 're-review', start, target, due, hours, overdue }].
 function owedClocks(prs, { now, holidays }) {
@@ -127,4 +144,4 @@ function owedClocks(prs, { now, holidays }) {
   return clocks;
 }
 
-module.exports = { approvedAt, assigneesOf, owedClocks, readySince, stackOf };
+module.exports = { approvedAt, assigneesOf, owedClocks, readySince, reviewersToAdd, stackOf };
