@@ -152,4 +152,30 @@ async function fetchOpenPrs({ github, core, owner, repo, maxPages = 5 }) {
   return prs;
 }
 
-module.exports = { fetchOpenPrs, toEvent, toOpenPr };
+const ACTIVE_REPOS = `query($owner: String!, $after: String) {
+  organization(login: $owner) {
+    repositories(first: 100, after: $after, orderBy: { field: PUSHED_AT, direction: DESC }) {
+      pageInfo { hasNextPage endCursor }
+      nodes { name pushedAt isArchived }
+    }
+  }
+}`;
+
+// The org's repos pushed to since `since` (any branch, so a PR's pushes count), newest first,
+// leaving out archived ones. An app installation token lists the private repos the app is
+// installed on, and every public one.
+async function activeRepos({ github, owner, since }) {
+  const names = [];
+  for (let after = null; ; ) {
+    const data = await github.graphql(ACTIVE_REPOS, { owner, after });
+    const page = data.organization.repositories;
+    for (const repo of page.nodes) {
+      if (!repo.pushedAt || new Date(repo.pushedAt) < since) return names;
+      if (!repo.isArchived) names.push(repo.name);
+    }
+    if (!page.pageInfo.hasNextPage) return names;
+    after = page.pageInfo.endCursor;
+  }
+}
+
+module.exports = { activeRepos, fetchOpenPrs, toEvent, toOpenPr };

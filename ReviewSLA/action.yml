@@ -7,15 +7,20 @@ description: >
 inputs:
   token:
     description: >
-      GitHub App installation token covering every repo in `repos`, with repository permissions Pull
+      GitHub App installation token covering every repo checked, with repository permissions Pull
       requests (write) and Issues (write), and organization permission Members (read).
     required: true
   mode:
     description: "off, shadow, remind or enforce. Usually the REVIEW_SLA_MODE variable."
     default: 'off'
   repos:
-    description: Repositories to check, separated by spaces or newlines.
-    required: true
+    description: >
+      Repositories to check, separated by spaces or newlines. Empty checks every repo in the org
+      pushed to within `active-days`, leaving out archived ones.
+    default: ''
+  active-days:
+    description: With no `repos`, how many days back a repo's last push can be for it to be checked.
+    default: '30'
   owner:
     description: Organization the repositories are in.
     default: StaflSystems
@@ -68,6 +73,7 @@ runs:
         EVENT_SCHEDULE: ${{ github.event.schedule }}
         MODE: ${{ inputs.mode }}
         REPOS: ${{ inputs.repos }}
+        ACTIVE_DAYS: ${{ inputs.active-days }}
         OWNER: ${{ inputs.owner }}
         ROTATION_TEAM: ${{ inputs.rotation-team }}
         DOMAIN_TEAM: ${{ inputs.domain-team }}
@@ -94,6 +100,7 @@ runs:
               schedule: env.EVENT_SCHEDULE,
               mode: env.MODE,
               repos: env.REPOS,
+              activeDays: env.ACTIVE_DAYS,
               owner: env.OWNER,
               rotationTeam: env.ROTATION_TEAM,
               domainTeam: env.DOMAIN_TEAM,
