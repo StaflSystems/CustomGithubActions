@@ -17,7 +17,7 @@ const { pickLeastLoaded, teamMembers } = require('../ReviewConfig/pick.js');
 const { hasSla } = require('./clock.js');
 const { parseState, reminderKey, renderComment } = require('./comment.js');
 const { renderDashboard, updateDashboard } = require('./confluence.js');
-const { fetchOpenPrs } = require('./github.js');
+const { activeRepos, fetchOpenPrs } = require('./github.js');
 const { approvedAt, assigneesOf, owedClocks, readySince, stackOf } = require('./owed.js');
 const { digestText, postMessage, reminderText } = require('./slack.js');
 
@@ -128,8 +128,31 @@ module.exports = async function run({ github, core, inputs, now = new Date(), fe
   const remind = mode === 'remind';
   const owner = inputs.owner || 'StaflSystems';
   const people = readPeople(inputs.people, core);
-  const repos = (inputs.repos || '').split(/[\s,]+/).filter(Boolean);
   const dashboardUrl = inputs.dashboardUrl || '';
+
+  // 0. Which repos: the ones listed, or else every repo in the org pushed to recently. If the
+  //    listing fails, nothing is checked: a dashboard with every repo missing would read as all clear.
+  let repos = (inputs.repos || '').split(/[\s,]+/).filter(Boolean);
+  if (repos.length === 0) {
+    const days = Number(inputs.activeDays) || 30;
+    try {
+      repos = await activeRepos({ github, owner, since: new Date(now - days * 864e5) });
+    } catch (error) {
+      core.warning(`Couldn't list the org's repos (${error.message}); nothing checked this run.`);
+      return { clocks: [], reminders: 0 };
+    }
+    core.info(`Checking ${repos.length} ${repos.length === 1 ? 'repo' : 'repos'} pushed to in the last ${days} days: ${repos.join(', ')}.`);
+  }
+
+  // Only the review team's reviews are tracked, so other teams' PRs in the same org are left alone.
+  const reviewTeam = inputs.rotationTeam || 'embeddedreviewers';
+  let reviewers;
+  try {
+    reviewers = new Set(await teamMembers(github, owner, reviewTeam));
+  } catch (error) {
+    core.warning(`Couldn't read the ${reviewTeam} team (${error.message}); nothing checked this run.`);
+    return { clocks: [], reminders: 0 };
+  }
 
   // 1. Every open PR, and every running clock.
   const prs = [];
@@ -138,7 +161,7 @@ module.exports = async function run({ github, core, inputs, now = new Date(), fe
     try {
       const open = await fetchOpenPrs({ github, core, owner, repo });
       prs.push(...open);
-      clocks.push(...owedClocks(open, { now, holidays }));
+      clocks.push(...owedClocks(open, { now, holidays }).filter((c) => reviewers.has(c.login)));
     } catch (error) {
       core.warning(`${repo}: couldn't read open PRs (${error.message}); skipping it this run.`);
     }
