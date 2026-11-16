@@ -19,7 +19,7 @@ const requestedItem = (login, iso) => ({ __typename: 'ReviewRequestedEvent', cre
 
 // A fake org: open PRs (as GraphQL nodes, rebuilt on every query so comments written by one run
 // are read by the next), teams, Slack, Confluence and the PTO calendar.
-function world({ prs, out = [], failRepo, failComments = false, isPrivate = true }) {
+function world({ prs, out = [], failRepo, failComments = false, isPrivate = true, repoList }) {
   const calls = { dms: [], posts: [], comments: [], edits: [], assign: [], unassign: [], requested: [], puts: [], graphql: 0 };
   const state = new Map(prs.map((p) => [p.number, { repo: 'StaflLib', author: 'alovelace', base: 'main', isDraft: false, additions: 300, timeline: [], assignees: [], comments: [], headRefOid: 'head', reviewCommits: {}, ...p }]));
   let commentId = 100;
@@ -43,6 +43,10 @@ function world({ prs, out = [], failRepo, failComments = false, isPrivate = true
     paginate: async (fn, params) => (await fn(params)).data,
     graphql: async (query, vars) => {
       calls.graphql++;
+      if (query.includes('isArchived')) {
+        if (!repoList) throw new Error('HTTP 502');
+        return { organization: { repositories: { pageInfo: { hasNextPage: false }, nodes: repoList } } };
+      }
       if (query.includes('organization(login')) {
         return { organization: { repositories: { nodes: [{ name: 'StaflLib', pullRequests: { nodes: [] } }] } } };
       }
@@ -361,4 +365,44 @@ test('enforce isn\'t built yet and runs as remind', async () => {
   const { logs } = await go(w, { mode: 'enforce', now: '2026-10-02T00:00:00Z' });
   assert.ok(logs.some((l) => l.startsWith("WARN REVIEW_SLA_MODE 'enforce'")));
   assert.strictEqual(w.calls.dms.length, 2);
+});
+
+test('with no repos listed, it checks the repos pushed to in the last 30 days, leaving out archived ones', async () => {
+  const repoList = [
+    { name: 'StaflLib', pushedAt: '2026-10-01T16:00:00Z', isArchived: false },
+    { name: 'old-but-archived', pushedAt: '2026-09-20T00:00:00Z', isArchived: true },
+    { name: 'coit-tower-bms2000', pushedAt: '2026-09-05T00:00:00Z', isArchived: false },
+    { name: 'stale', pushedAt: '2026-08-01T00:00:00Z', isArchived: false },
+  ];
+  const w = world({ prs: [onePr()], repoList });
+  const { logs } = await go(w, { now: '2026-10-02T00:00:00Z', inputs: { repos: '' } });
+  assert.ok(logs.includes('Checking 2 repos pushed to in the last 30 days: StaflLib, coit-tower-bms2000.'));
+  assert.strictEqual(w.calls.dms.length, 2);
+  const recent = await go(world({ prs: [onePr()], repoList }), { now: '2026-10-02T00:00:00Z', inputs: { repos: '', activeDays: '7' } });
+  assert.ok(recent.logs.includes('Checking 1 repo pushed to in the last 7 days: StaflLib.'));
+});
+
+test('if the org\'s repos can\'t be listed, nothing is checked or changed', async () => {
+  const w = world({ prs: [onePr()] });
+  const { logs } = await go(w, { now: '2026-10-02T00:00:00Z', inputs: { repos: '' } });
+  assert.ok(logs.includes("WARN Couldn't list the org's repos (HTTP 502); nothing checked this run."));
+  assert.deepStrictEqual([w.calls.dms, w.calls.comments, w.calls.puts, w.calls.posts], [[], [], [], []]);
+});
+
+test('only the review team\'s assignees are tracked, so other teams\' PRs are left alone', async () => {
+  // PR 2 is another team's: its assignee isn't on embeddedreviewers.
+  const w = world({ prs: [onePr(), { number: 2, head: 'feature/b', assignees: ['webdev'] }] });
+  await go(w, { now: '2026-10-02T00:00:00Z' });
+  assert.deepStrictEqual(w.calls.comments.map((c) => c.issue_number), [1]);
+  assert.ok(w.calls.puts.at(-1).body.storage.value.indexOf('webdev') === -1);
+});
+
+test('if the review team can\'t be read, nothing is checked or changed', async () => {
+  const w = world({ prs: [onePr()] });
+  w.github.rest.teams.listMembersInOrg = async () => {
+    throw new Error('HTTP 403');
+  };
+  const { logs } = await go(w, { now: '2026-10-02T00:00:00Z' });
+  assert.ok(logs.includes("WARN Couldn't read the embeddedreviewers team (HTTP 403); nothing checked this run."));
+  assert.deepStrictEqual([w.calls.dms, w.calls.comments, w.calls.puts], [[], [], []]);
 });

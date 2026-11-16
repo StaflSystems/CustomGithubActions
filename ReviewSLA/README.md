@@ -19,6 +19,13 @@ the rollback for every step:
 | `remind` | Also DMs each assignee when their review is due, and reassigns anyone the PTO calendar has out before their review is due |
 | `enforce` | Reassignment at twice the target. Not built yet; runs as `remind` |
 
+**Which repos and reviews.** Every repo in the org pushed to in the last 30 days (`active-days`),
+leaving out archived ones, so a new repo is picked up with no setup beyond installing the
+staflsystemsci app on it. Pass `repos` to check a fixed list instead. Only assignees on the
+rotation team (`embeddedreviewers`) have clocks, so other teams' PRs in the same org get no
+comments, reminders or reassignment and don't appear on the dashboard. If the repos or the team
+can't be read, the run changes nothing.
+
 ### Who owes what
 
 Each assignee other than the author has their own clock on each ready PR:
@@ -77,8 +84,7 @@ It fails safe: an API error is a warning, and that PR, repo, channel or page is 
 | `CONFLUENCE_URL`, `CONFLUENCE_USER`, `CONFLUENCE_API_TOKEN` | Org variables, secret | Base URL ending in `/wiki`, and the email and API token of an account that can edit the page. A scoped (service account) token uses `https://api.atlassian.com/ex/confluence/<cloud id>/wiki` |
 | `REVIEW_SLA_PAGE_ID` | Org variable | The dashboard page |
 
-The org secrets and variables have to be visible to the repo that runs the job. The workflow,
-which also lists the repos checked:
+The org secrets and variables have to be visible to the repo that runs the job. The workflow:
 
 ```yaml
 name: Review SLA
@@ -122,13 +128,6 @@ jobs:
         with:
           token: ${{ steps.app.outputs.token }}
           mode: ${{ vars.REVIEW_SLA_MODE }}
-          repos: >-
-            StaflLib
-            coit-tower-bms2000
-            goldengate-bms2000-string
-            stafl-bms2000-template
-            anza-bms2000
-            CustomGithubActions
           pto-calendar-url: ${{ secrets.PTO_CALENDAR_URL }}
           people: ${{ vars.REVIEW_PEOPLE }}
           slack-token: ${{ secrets.REVIEW_SLA_SLACK_BOT_TOKEN }}
