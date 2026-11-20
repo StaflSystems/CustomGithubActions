@@ -161,23 +161,61 @@ test('shadow keeps the comment and dashboard but sends no reminders and reassign
   const w = world({ prs: [onePr()], out: [['Person ghopper', '2026-10-02']] });
   await go(w, { mode: 'shadow', now: '2026-10-02T00:00:00Z' });
   assert.strictEqual(w.calls.comments.length, 1);
-  assert.ok(w.calls.comments[0].body.startsWith(`${MARKER} {"reminded":[]} -->`));
+  assert.ok(w.calls.comments[0].body.startsWith(`${MARKER} {"notified":[],"reminded":[]} -->`));
   assert.match(w.calls.comments[0].body, /\| `ghopper` \| First response \| Thu Oct 1, 17:00 PT \| Overdue \|/);
   assert.deepStrictEqual([w.calls.dms, w.calls.assign], [[], []]);
   assert.strictEqual(w.calls.puts.length, 1);
 });
 
-test('remind DMs each overdue assignee once, however many runs see it', async () => {
+test('remind DMs each assignee once when their review becomes owed, and once more when it\'s overdue', async () => {
   const w = world({ prs: [onePr()] });
-  await go(w, { now: '2026-10-01T23:30:00Z' });
-  assert.deepStrictEqual(w.calls.dms, []);
-  await go(w, { now: '2026-10-02T00:00:00Z' });
+  const { result } = await go(w, { now: '2026-10-01T17:30:00Z' });
   assert.deepStrictEqual(w.calls.dms.map((m) => m.channel).sort(), ['U000', 'U002']);
-  assert.match(w.calls.dms[0].text, /^Review due: <https:\/\/app.graphite.com\/github\/pr\/StaflSystems\/StaflLib\/1\|StaflLib#1: PR 1>\. As an assignee, your first response was due at Thu Oct 1, 17:00 PT\.$/);
-  await go(w, { now: '2026-10-02T17:30:00Z' });
+  assert.match(w.calls.dms[0].text, /^Review assigned: <https:\/\/app.graphite.com\/github\/pr\/StaflSystems\/StaflLib\/1\|StaflLib#1: PR 1>\. As an assignee, your first response is due by Thu Oct 1, 17:00 PT \(7 business hours\)\.$/);
+  assert.deepStrictEqual([result.notices, result.reminders], [2, 0]);
+  await go(w, { now: '2026-10-01T23:30:00Z' });
   assert.strictEqual(w.calls.dms.length, 2);
+  await go(w, { now: '2026-10-02T00:00:00Z' });
+  assert.strictEqual(w.calls.dms.length, 4);
+  assert.match(w.calls.dms[2].text, /^Review due: <https:\/\/app.graphite.com\/github\/pr\/StaflSystems\/StaflLib\/1\|StaflLib#1: PR 1>\. As an assignee, your first response was due at Thu Oct 1, 17:00 PT\.$/);
+  await go(w, { now: '2026-10-02T17:30:00Z' });
+  assert.strictEqual(w.calls.dms.length, 4);
   // One comment, edited in place.
   assert.strictEqual(w.calls.comments.length, 1);
+});
+
+test('a review first seen overdue gets only the reminder', async () => {
+  const w = world({ prs: [onePr()] });
+  const { result } = await go(w, { now: '2026-10-02T00:00:00Z' });
+  assert.deepStrictEqual(w.calls.dms.map((m) => m.text.split(':')[0]), ['Review due', 'Review due']);
+  assert.deepStrictEqual([result.notices, result.reminders], [0, 2]);
+});
+
+test('mid-stack, the notice waits until the PR below is approved, then says when the review is due', async () => {
+  const w = world({
+    prs: [
+      { number: 1, head: 'feature/a', assignees: ['kjohnson'] },
+      { number: 2, head: 'feature/b', base: 'feature/a', assignees: ['kjohnson'], additions: 10 },
+    ],
+  });
+  await go(w, { now: '2026-10-01T17:30:00Z' });
+  assert.deepStrictEqual(w.calls.dms.map((m) => m.text.match(/StaflLib#\d/)[0]), ['StaflLib#1']);
+  w.pr(1).timeline.push(reviewItem('kjohnson', 'APPROVED', '2026-10-01T19:00:00Z'));
+  await go(w, { now: '2026-10-01T19:30:00Z' });
+  assert.strictEqual(w.calls.dms.length, 2);
+  assert.match(w.calls.dms[1].text, /StaflLib#2: PR 2>\. As an assignee, your first response is due by Thu Oct 1, 16:00 PT \(4 business hours\)\.$/);
+});
+
+test('a new re-review clock gets its own notice', async () => {
+  const timeline = [reviewItem('ghopper', 'CHANGES_REQUESTED', '2026-10-01T18:00:00Z', 7), reviewItem('kjohnson', 'APPROVED', '2026-10-01T18:00:00Z', 8)];
+  const w = world({ prs: [onePr({ timeline, headRefOid: 'aaa', reviewCommits: { 7: 'aaa', 8: 'aaa' } })] });
+  await go(w, { now: '2026-10-01T19:00:00Z' });
+  assert.deepStrictEqual(w.calls.dms, []);
+  w.pr(1).timeline.push(requestedItem('ghopper', '2026-10-01T20:00:00Z'));
+  w.pr(1).headRefOid = 'bbb';
+  await go(w, { now: '2026-10-01T20:30:00Z' });
+  assert.deepStrictEqual(w.calls.dms.map((m) => m.channel), ['U000']);
+  assert.match(w.calls.dms[0].text, /^Re-review requested: .*your re-review is due by Thu Oct 1, 17:00 PT \(4 business hours\)\.$/);
 });
 
 test('a re-request after a push since the review starts a re-review clock; without one, nothing', async () => {
@@ -357,7 +395,7 @@ test('someone with no Slack ID is warned about, and the others still get reminde
   const w = world({ prs: [onePr()] });
   const { logs } = await go(w, { now: '2026-10-02T00:00:00Z', inputs: { people: JSON.stringify(people) } });
   assert.deepStrictEqual(w.calls.dms.map((m) => m.channel), ['U002']);
-  assert.ok(logs.includes('WARN No Slack ID in REVIEW_PEOPLE for ghopper, so they get no reminders.'));
+  assert.ok(logs.includes('WARN No Slack ID in REVIEW_PEOPLE for ghopper, so they get no DMs.'));
 });
 
 test('enforce isn\'t built yet and runs as remind', async () => {

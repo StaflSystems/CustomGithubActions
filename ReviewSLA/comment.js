@@ -1,6 +1,6 @@
 // The one Review SLA comment on each ready PR: who owes what, and when it's due. Its first line
-// is a hidden marker that also records which reminders have been sent, so reruns and late
-// scheduled runs don't send them twice.
+// is a hidden marker that also records which DMs have been sent (the notice when a review becomes
+// owed, and the reminder when it's overdue), so reruns and late scheduled runs don't send them twice.
 
 const { TIME_ZONE } = require('../ReviewConfig/pto.js');
 const { SMALL_PR_LINES, TARGET_HOURS } = require('./clock.js');
@@ -34,17 +34,18 @@ function graphiteUrl(pr) {
   return match ? `https://app.graphite.com/github/pr/${match[1]}/${match[2]}/${match[3]}` : pr.url;
 }
 
-// One key per clock, so a reminder is sent once per clock: a new clock (a re-review, or a restart
+// One key per clock, so each DM is sent once per clock: a new clock (a re-review, or a restart
 // after the PR goes back to draft) has a new start and gets its own.
 const reminderKey = (clock) => `${clock.login}:${clock.kind}:${clock.start.toISOString()}`;
 
 function parseState(body) {
   const match = body && new RegExp(`^${MARKER} (.*?) -->`).exec(body);
+  const list = (value) => (Array.isArray(value) ? value : []);
   try {
     const state = match ? JSON.parse(match[1]) : {};
-    return { reminded: Array.isArray(state.reminded) ? state.reminded : [] };
+    return { notified: list(state.notified), reminded: list(state.reminded) };
   } catch {
-    return { reminded: [] };
+    return { notified: [], reminded: [] };
   }
 }
 

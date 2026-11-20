@@ -16,14 +16,14 @@ the rollback for every step:
 | --- | --- |
 | `off`, or unset | Nothing; the job is skipped |
 | `shadow` | Keeps each PR's Review SLA comment, the Confluence dashboard and the 10:00 Slack digest up to date |
-| `remind` | Also DMs each assignee when their review is due, and reassigns anyone the PTO calendar has out before their review is due |
+| `remind` | Also DMs each assignee when a review becomes owed and again when it's overdue, and reassigns anyone the PTO calendar has out before their review is due |
 | `enforce` | Reassignment at twice the target. Not built yet; runs as `remind` |
 
 **Which repos and reviews.** Every repo in the org pushed to in the last 30 days (`active-days`),
 leaving out archived ones, so a new repo is picked up with no setup beyond installing the
 staflsystemsci app on it. Pass `repos` to check a fixed list instead. Only assignees on the
 rotation team (`embeddedreviewers`) have clocks, so other teams' PRs in the same org get no
-comments, reminders or reassignment and don't appear on the dashboard. If the repos or the team
+comments, DMs or reassignment and don't appear on the dashboard. If the repos or the team
 can't be read, the run changes nothing.
 
 ### Who owes what
@@ -49,11 +49,16 @@ Bot PRs and Graphite merge-queue PRs have no clocks.
 ### What it changes
 
 - **A Review SLA comment** on each ready PR where someone owes a review, edited in place: who owes
-  what, and when it's due. A hidden marker in it records which reminders have been sent, so reruns
+  what, and when it's due. A hidden marker in it records which DMs have been sent, so reruns
   and late scheduled runs don't send them twice. The comment is written before the DM, so a failed
-  write means a missed reminder, not a repeated one.
-- **Reminder DMs** (`remind`): one per clock, when it's due, to the assignee's Slack ID in
-  `REVIEW_PEOPLE`, linking to the PR in Graphite.
+  write means a missed DM, not a repeated one.
+- **DMs** (`remind`), to the assignee's Slack ID in `REVIEW_PEOPLE`, linking to the PR in Graphite.
+  Two per clock at most: a notice when it starts, with when the review is due, and a reminder once
+  it's overdue. A clock starts on assignment, on a re-request after a push, or mid-stack when the
+  PR below is approved, so someone assigned a whole stack hears about each PR when it's their turn.
+  The job runs every half hour in business hours, so a notice can lag the assignment by up to 30
+  minutes, and one for a review assigned out of hours comes at 10:00, when its clock starts. A
+  review first seen overdue gets only the reminder.
 - **Out-of-office reassignment** (`remind`): an assignee the PTO calendar has out on any day from
   today to the day their review is due (or today, for an overdue review) is replaced on every PR in the stack they're assigned to
   and haven't approved. Their approvals stand.
@@ -107,7 +112,7 @@ on:
 
 permissions: {}
 
-# Runs never overlap, so a reminder recorded by one is seen by the next.
+# Runs never overlap, so a DM recorded by one is seen by the next.
 concurrency:
   group: review-sla
   cancel-in-progress: false
@@ -191,7 +196,7 @@ PRs by creation date, and 34 PRs opened before Jun 26 were marked ready during t
 
 | File | What it does |
 | --- | --- |
-| `run.js` | The scheduled job: modes, out-of-office reassignment, comments, reminders, digest, dashboard |
+| `run.js` | The scheduled job: modes, out-of-office reassignment, comments, DMs, digest, dashboard |
 | `owed.js` | Who owes a review now: each assignee's clock, with the stack and re-review rules |
 | `github.js` | Reads each repo's open PRs and their timelines |
 | `comment.js`, `slack.js`, `confluence.js` | The PR comment, Slack messages and the dashboard page |

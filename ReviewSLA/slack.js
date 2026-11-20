@@ -1,4 +1,4 @@
-// Slack: reminder DMs to assignees, and the 10:00 digest. One bot token does both; its only scope
+// Slack: DMs to assignees when a review becomes owed and when it's overdue, and the 10:00 digest. One bot token does both; its only scope
 // is chat:write, and the bot has to be invited to the digest channel.
 
 const { pacificDate } = require('../ReviewConfig/pto.js');
@@ -17,6 +17,13 @@ async function postMessage({ token, channel, text, fetch = globalThis.fetch }) {
 // Slack's mrkdwn wants &, < and > escaped in text.
 const escape = (text) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const prLink = (pr) => `<${graphiteUrl(pr)}|${pr.repo}#${pr.number}: ${escape(pr.title)}>`;
+
+// Sent when a clock starts: on assignment, or mid-stack once the PR below is approved.
+function noticeText(clock) {
+  const what = clock.kind === 'first' ? 'Review assigned' : 'Re-review requested';
+  const owes = clock.kind === 'first' ? 'your first response' : 'your re-review';
+  return `${what}: ${prLink(clock.pr)}. As an assignee, ${owes} is due by ${formatTime(clock.due)} PT (${clock.target} business hours).`;
+}
 
 function reminderText(clock) {
   const what = clock.kind === 'first' ? 'your first response' : 'your re-review';
@@ -46,4 +53,4 @@ function digestText(clocks, { now, people, dashboardUrl }) {
   return lines.join('\n');
 }
 
-module.exports = { digestText, postMessage, reminderText };
+module.exports = { digestText, noticeText, postMessage, reminderText };

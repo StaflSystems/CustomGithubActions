@@ -4,7 +4,8 @@
 //   off      does nothing
 //   shadow   keeps each PR's Review SLA comment, the Confluence dashboard and the 10:00 Slack digest
 //            up to date (kept as the rollback)
-//   remind   also DMs each assignee when their review is due, and reassigns an assignee the PTO
+//   remind   also DMs each assignee when a review becomes owed and again when it's overdue, and
+//            reassigns an assignee the PTO
 //            calendar has out before their review is due, across the whole stack
 //   enforce  reassignment at twice the target (step 3); not built yet, so it runs as remind
 //
@@ -19,7 +20,7 @@ const { parseState, reminderKey, renderComment } = require('./comment.js');
 const { renderDashboard, updateDashboard } = require('./confluence.js');
 const { activeRepos, fetchOpenPrs } = require('./github.js');
 const { approvedAt, assigneesOf, owedClocks, readySince, stackOf } = require('./owed.js');
-const { digestText, postMessage, reminderText } = require('./slack.js');
+const { digestText, noticeText, postMessage, reminderText } = require('./slack.js');
 
 const MODES = ['off', 'shadow', 'remind', 'enforce'];
 
@@ -139,7 +140,7 @@ module.exports = async function run({ github, core, inputs, now = new Date(), fe
       repos = await activeRepos({ github, owner, since: new Date(now - days * 864e5) });
     } catch (error) {
       core.warning(`Couldn't list the org's repos (${error.message}); nothing checked this run.`);
-      return { clocks: [], reminders: 0 };
+      return { clocks: [], notices: 0, reminders: 0 };
     }
     core.info(`Checking ${repos.length} ${repos.length === 1 ? 'repo' : 'repos'} pushed to in the last ${days} days: ${repos.join(', ')}.`);
   }
@@ -151,7 +152,7 @@ module.exports = async function run({ github, core, inputs, now = new Date(), fe
     reviewers = new Set(await teamMembers(github, owner, reviewTeam));
   } catch (error) {
     core.warning(`Couldn't read the ${reviewTeam} team (${error.message}); nothing checked this run.`);
-    return { clocks: [], reminders: 0 };
+    return { clocks: [], notices: 0, reminders: 0 };
   }
 
   // 1. Every open PR, and every running clock.
@@ -190,41 +191,50 @@ module.exports = async function run({ github, core, inputs, now = new Date(), fe
     }
   }
 
-  // 3. Each PR's comment, then the DMs it records. The comment is written first, so a failed
-  //    write means a missed reminder rather than a repeated one.
+  // 3. Each PR's comment, then the DMs it records: a notice when a review becomes owed, and a
+  //    reminder once it's overdue. A review first seen overdue gets only the reminder. The comment
+  //    is written first, so a failed write means a missed DM rather than a repeated one.
   const slackIdMissing = new Set();
+  let notices = 0;
   let reminders = 0;
   for (const pr of prs) {
     if (!hasSla(pr)) continue;
     const mine = clocks.filter((c) => c.pr === pr);
     if (!pr.sticky && mine.length === 0) continue;
     const keys = new Set(mine.map(reminderKey));
-    const reminded = parseState(pr.sticky?.body).reminded.filter((k) => keys.has(k));
-    const due = !remind || !inputs.slackToken ? [] : mine.filter((c) => c.overdue && !reminded.includes(reminderKey(c)));
-    const sendable = due.filter((c) => {
+    const sent = parseState(pr.sticky?.body);
+    const notified = sent.notified.filter((k) => keys.has(k));
+    const reminded = sent.reminded.filter((k) => keys.has(k));
+    const owed = !remind || !inputs.slackToken ? [] : mine.filter((c) => !(c.overdue ? reminded : notified).includes(reminderKey(c)));
+    const sendable = owed.filter((c) => {
       if (people[c.login]?.slack) return true;
       slackIdMissing.add(c.login);
       return false;
     });
-    const state = { reminded: [...reminded, ...sendable.map(reminderKey)] };
+    const state = {
+      notified: [...notified, ...sendable.filter((c) => !c.overdue).map(reminderKey)],
+      reminded: [...reminded, ...sendable.filter((c) => c.overdue).map(reminderKey)],
+    };
     const body = renderComment(readySince(pr) ? mine : [], state, { dashboardUrl });
     try {
       if (!pr.sticky) await github.rest.issues.createComment({ owner, repo: pr.repo, issue_number: pr.number, body });
       else if (body !== pr.sticky.body) await github.rest.issues.updateComment({ owner, repo: pr.repo, comment_id: pr.sticky.id, body });
     } catch (error) {
-      core.warning(`${pr.repo}#${pr.number}: couldn't write the Review SLA comment (${error.message}); no reminders for it this run.`);
+      core.warning(`${pr.repo}#${pr.number}: couldn't write the Review SLA comment (${error.message}); no DMs for it this run.`);
       continue;
     }
     for (const clock of sendable) {
       try {
-        await postMessage({ token: inputs.slackToken, channel: people[clock.login].slack, text: reminderText(clock), fetch });
-        reminders++;
+        const text = clock.overdue ? reminderText(clock) : noticeText(clock);
+        await postMessage({ token: inputs.slackToken, channel: people[clock.login].slack, text, fetch });
+        if (clock.overdue) reminders++;
+        else notices++;
       } catch (error) {
         core.warning(`${pr.repo}#${pr.number}: couldn't DM ${clock.login} (${error.message}).`);
       }
     }
   }
-  if (slackIdMissing.size > 0) core.warning(`No Slack ID in REVIEW_PEOPLE for ${[...slackIdMissing].join(', ')}, so they get no reminders.`);
+  if (slackIdMissing.size > 0) core.warning(`No Slack ID in REVIEW_PEOPLE for ${[...slackIdMissing].join(', ')}, so they get no DMs.`);
 
   // 4. The 10:00 digest.
   if (isDigestRun(inputs, now)) {
@@ -259,8 +269,8 @@ module.exports = async function run({ github, core, inputs, now = new Date(), fe
   }
 
   const overdue = clocks.filter((c) => c.overdue).length;
-  core.info(`Mode ${mode}: ${prs.length} open PRs, ${clocks.length} reviews owed, ${overdue} overdue, ${reminders} reminders sent.`);
-  return { clocks, reminders };
+  core.info(`Mode ${mode}: ${prs.length} open PRs, ${clocks.length} reviews owed, ${overdue} overdue; ${notices} notices and ${reminders} reminders sent.`);
+  return { clocks, notices, reminders };
 };
 
 module.exports.inBusinessHours = inBusinessHours;

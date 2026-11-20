@@ -1,8 +1,8 @@
 name: Review SLA
 description: >
   Works out who owes a review on every open PR and by when, keeps a Review SLA comment on each PR,
-  a Confluence dashboard and a 10:00 Slack digest up to date, DMs assignees when a review is due,
-  and reassigns an assignee who is out before it's due.
+  a Confluence dashboard and a 10:00 Slack digest up to date, DMs assignees when a review becomes
+  owed and when it's overdue, and reassigns an assignee who is out before it's due.
 
 inputs:
   token:
@@ -37,7 +37,7 @@ inputs:
     description: People map from the REVIEW_PEOPLE org variable (names and Slack IDs).
     default: ''
   slack-token:
-    description: Slack bot token, with chat:write. Without it, no reminders or digest.
+    description: Slack bot token, with chat:write. Without it, no DMs or digest.
     default: ''
   slack-channel:
     description: Slack channel ID for the digest. The bot has to be invited to it.
